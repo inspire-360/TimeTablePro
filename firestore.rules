@@ -1,0 +1,963 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userProfileDoc(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
+    function hasUserProfile() {
+      return isSignedIn() && exists(userProfileDoc(request.auth.uid));
+    }
+
+    function currentUserProfile() {
+      return get(userProfileDoc(request.auth.uid)).data;
+    }
+
+    function isPlatformAdmin() {
+      return hasUserProfile() && currentUserProfile().role == 'super_admin';
+    }
+
+    function isSchoolMember(schoolId) {
+      return hasUserProfile() &&
+        (currentUserProfile().schoolId == schoolId || isPlatformAdmin());
+    }
+
+    function isSchoolManager(schoolId) {
+      return isSchoolMember(schoolId) &&
+        (
+          currentUserProfile().role == 'super_admin' ||
+          currentUserProfile().role == 'school_admin' ||
+          currentUserProfile().role == 'academic_admin'
+        );
+    }
+
+    function isNonEmptyString(value) {
+      return value is string && value.size() > 0;
+    }
+
+    function isOptionalString(value) {
+      return value == null || value is string;
+    }
+
+    function isStatus(value) {
+      return value == 'active' || value == 'inactive';
+    }
+
+    function isOptionalPositiveInt(value) {
+      return value == null || (value is int && value > 0);
+    }
+
+    function isSectionType(value) {
+      return value == 'full_class' || value == 'subgroup';
+    }
+
+    function isTimetableType(value) {
+      return value == 'class' || value == 'teacher' || value == 'room';
+    }
+
+    function isTimeSlotType(value) {
+      return value == 'teaching' || value == 'break' || value == 'lunch';
+    }
+
+    function isAbsenceStatus(value) {
+      return value == 'reported' || value == 'approved' || value == 'cancelled';
+    }
+
+    function isSubstitutionStatus(value) {
+      return value == 'assigned' || value == 'cancelled';
+    }
+
+    match /users/{userId} {
+      allow create: if isSignedIn() &&
+        userId == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid;
+
+      allow read: if isSignedIn() &&
+        (
+          userId == request.auth.uid ||
+          isPlatformAdmin() ||
+          isSchoolManager(resource.data.schoolId)
+        );
+
+      allow update: if isSignedIn() &&
+        (
+          (userId == request.auth.uid &&
+            request.resource.data.uid == resource.data.uid &&
+            request.resource.data.schoolId == resource.data.schoolId) ||
+          isPlatformAdmin()
+        );
+
+      allow delete: if false;
+    }
+
+    match /schools/{schoolId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.schoolId == schoolId;
+
+      allow read: if isSchoolMember(schoolId);
+
+      allow update: if isSchoolManager(schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId;
+
+      allow delete: if false;
+    }
+
+    match /schoolSettings/{schoolId} {
+      allow create, update: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.schoolId == schoolId;
+
+      allow read: if isSchoolMember(schoolId);
+      allow delete: if false;
+    }
+
+    match /academicYears/{academicYearId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId;
+
+      allow delete: if false;
+    }
+
+    match /terms/{termId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId;
+
+      allow delete: if false;
+    }
+
+    match /timeStructures/{timeStructureId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.daysPerWeek is int &&
+        request.resource.data.daysPerWeek >= 1 &&
+        request.resource.data.daysPerWeek <= 7 &&
+        request.resource.data.periodsPerDay is int &&
+        request.resource.data.periodsPerDay >= 1 &&
+        request.resource.data.periodsPerDay <= 20 &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0;
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.daysPerWeek is int &&
+        request.resource.data.daysPerWeek >= 1 &&
+        request.resource.data.daysPerWeek <= 7 &&
+        request.resource.data.periodsPerDay is int &&
+        request.resource.data.periodsPerDay >= 1 &&
+        request.resource.data.periodsPerDay <= 20 &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0;
+
+      allow delete: if false;
+    }
+
+    match /dailySchedules/{dailyScheduleId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.slotCount is int &&
+        request.resource.data.slotCount >= 0 &&
+        request.resource.data.teachingSlotCount is int &&
+        request.resource.data.teachingSlotCount >= 0;
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.timeStructureId == resource.data.timeStructureId &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.slotCount is int &&
+        request.resource.data.slotCount >= 0 &&
+        request.resource.data.teachingSlotCount is int &&
+        request.resource.data.teachingSlotCount >= 0;
+
+      allow delete: if false;
+    }
+
+    match /timeSlots/{timeSlotId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.slotIndex is int &&
+        request.resource.data.slotIndex >= 1 &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.startTime is string &&
+        request.resource.data.endTime is string &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        (
+          request.resource.data.slotType == 'teaching' ||
+          request.resource.data.slotType == 'break' ||
+          request.resource.data.slotType == 'lunch'
+        );
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.timeStructureId == resource.data.timeStructureId &&
+        request.resource.data.dailyScheduleId == resource.data.dailyScheduleId &&
+        request.resource.data.slotIndex is int &&
+        request.resource.data.slotIndex >= 1 &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.startTime is string &&
+        request.resource.data.endTime is string &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        (
+          request.resource.data.slotType == 'teaching' ||
+          request.resource.data.slotType == 'break' ||
+          request.resource.data.slotType == 'lunch'
+        );
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /plcPolicies/{plcPolicyId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.timeStructureId is string &&
+        request.resource.data.timeStructureId.size() > 0 &&
+        request.resource.data.plcDays is list &&
+        request.resource.data.plcDays.size() > 0 &&
+        request.resource.data.plcDays.size() <= 7 &&
+        request.resource.data.hoursPerWeek is number &&
+        request.resource.data.hoursPerWeek > 0 &&
+        request.resource.data.hoursPerWeek <= 20 &&
+        request.resource.data.applyAfterLastTeaching == true &&
+        request.resource.data.blocksTeacherTime == true &&
+        request.resource.data.visibleInStudentTimetable == false;
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.timeStructureId is string &&
+        request.resource.data.timeStructureId.size() > 0 &&
+        request.resource.data.plcDays is list &&
+        request.resource.data.plcDays.size() > 0 &&
+        request.resource.data.plcDays.size() <= 7 &&
+        request.resource.data.hoursPerWeek is number &&
+        request.resource.data.hoursPerWeek > 0 &&
+        request.resource.data.hoursPerWeek <= 20 &&
+        request.resource.data.applyAfterLastTeaching == true &&
+        request.resource.data.blocksTeacherTime == true &&
+        request.resource.data.visibleInStudentTimetable == false;
+
+      allow delete: if false;
+    }
+
+    match /teacherWorkloadPolicies/{teacherWorkloadPolicyId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.teacherId is string &&
+        request.resource.data.teacherId.size() > 0 &&
+        request.resource.data.teacherName is string &&
+        request.resource.data.teacherName.size() > 0 &&
+        request.resource.data.plcEnabled is bool &&
+        request.resource.data.plcDayOverrides is list &&
+        request.resource.data.plcDayOverrides.size() <= 7 &&
+        (
+          request.resource.data.plcHoursPerWeekOverride == null ||
+          (
+            request.resource.data.plcHoursPerWeekOverride is number &&
+            request.resource.data.plcHoursPerWeekOverride > 0 &&
+            request.resource.data.plcHoursPerWeekOverride <= 20
+          )
+        );
+
+      allow read: if isSchoolManager(resource.data.schoolId) ||
+        (isSignedIn() && request.auth.uid == resource.data.teacherId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        request.resource.data.teacherName is string &&
+        request.resource.data.teacherName.size() > 0 &&
+        request.resource.data.plcEnabled is bool &&
+        request.resource.data.plcDayOverrides is list &&
+        request.resource.data.plcDayOverrides.size() <= 7 &&
+        (
+          request.resource.data.plcHoursPerWeekOverride == null ||
+          (
+            request.resource.data.plcHoursPerWeekOverride is number &&
+            request.resource.data.plcHoursPerWeekOverride > 0 &&
+            request.resource.data.plcHoursPerWeekOverride <= 20
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /teacherPlcAssignments/{teacherPlcAssignmentId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        request.resource.data.teacherId is string &&
+        request.resource.data.teacherId.size() > 0 &&
+        request.resource.data.plcPolicyId is string &&
+        request.resource.data.plcPolicyId.size() > 0 &&
+        request.resource.data.timeStructureId is string &&
+        request.resource.data.timeStructureId.size() > 0 &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.startTime is string &&
+        request.resource.data.endTime is string &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        request.resource.data.durationMinutes is int &&
+        request.resource.data.durationMinutes > 0 &&
+        request.resource.data.blocksTeacherTime == true &&
+        request.resource.data.visibleInStudentTimetable == false &&
+        (
+          request.resource.data.source == 'policy' ||
+          request.resource.data.source == 'teacher_override'
+        );
+
+      allow read: if isSchoolManager(resource.data.schoolId) ||
+        (isSignedIn() && request.auth.uid == resource.data.teacherId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        request.resource.data.plcPolicyId is string &&
+        request.resource.data.plcPolicyId.size() > 0 &&
+        request.resource.data.timeStructureId is string &&
+        request.resource.data.timeStructureId.size() > 0 &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.startTime is string &&
+        request.resource.data.endTime is string &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        request.resource.data.durationMinutes is int &&
+        request.resource.data.durationMinutes > 0 &&
+        request.resource.data.blocksTeacherTime == true &&
+        request.resource.data.visibleInStudentTimetable == false &&
+        (
+          request.resource.data.source == 'policy' ||
+          request.resource.data.source == 'teacher_override'
+        );
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /learningAreas/{learningAreaId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.description) &&
+        isNonEmptyString(request.resource.data.colorToken) &&
+        isNonEmptyString(request.resource.data.colorHex) &&
+        request.resource.data.sortOrder is int &&
+        request.resource.data.sortOrder >= 0 &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.description) &&
+        isNonEmptyString(request.resource.data.colorToken) &&
+        isNonEmptyString(request.resource.data.colorHex) &&
+        request.resource.data.sortOrder is int &&
+        request.resource.data.sortOrder >= 0 &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /subjects/{subjectId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.shortName) &&
+        isNonEmptyString(request.resource.data.learningAreaId) &&
+        isNonEmptyString(request.resource.data.learningAreaName) &&
+        (
+          request.resource.data.subjectType == 'core' ||
+          request.resource.data.subjectType == 'elective'
+        ) &&
+        isNonEmptyString(request.resource.data.colorToken) &&
+        isNonEmptyString(request.resource.data.colorHex) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.shortName) &&
+        isNonEmptyString(request.resource.data.learningAreaId) &&
+        isNonEmptyString(request.resource.data.learningAreaName) &&
+        (
+          request.resource.data.subjectType == 'core' ||
+          request.resource.data.subjectType == 'elective'
+        ) &&
+        isNonEmptyString(request.resource.data.colorToken) &&
+        isNonEmptyString(request.resource.data.colorHex) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /teachers/{teacherId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.employeeCode) &&
+        isOptionalString(request.resource.data.title) &&
+        isNonEmptyString(request.resource.data.firstName) &&
+        isNonEmptyString(request.resource.data.lastName) &&
+        isNonEmptyString(request.resource.data.displayName) &&
+        isOptionalString(request.resource.data.email) &&
+        isOptionalString(request.resource.data.phone) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.employeeCode) &&
+        isOptionalString(request.resource.data.title) &&
+        isNonEmptyString(request.resource.data.firstName) &&
+        isNonEmptyString(request.resource.data.lastName) &&
+        isNonEmptyString(request.resource.data.displayName) &&
+        isOptionalString(request.resource.data.email) &&
+        isOptionalString(request.resource.data.phone) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /students/{studentId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.studentCode) &&
+        isOptionalString(request.resource.data.title) &&
+        isNonEmptyString(request.resource.data.firstName) &&
+        isNonEmptyString(request.resource.data.lastName) &&
+        isNonEmptyString(request.resource.data.displayName) &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.className) &&
+        isOptionalPositiveInt(request.resource.data.studentNumber) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.studentCode) &&
+        isOptionalString(request.resource.data.title) &&
+        isNonEmptyString(request.resource.data.firstName) &&
+        isNonEmptyString(request.resource.data.lastName) &&
+        isNonEmptyString(request.resource.data.displayName) &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.className) &&
+        isOptionalPositiveInt(request.resource.data.studentNumber) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /classes/{classId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isNonEmptyString(request.resource.data.gradeLevel) &&
+        isOptionalString(request.resource.data.roomLabel) &&
+        isOptionalString(request.resource.data.homeRoomTeacherId) &&
+        isOptionalString(request.resource.data.homeRoomTeacherName) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isNonEmptyString(request.resource.data.gradeLevel) &&
+        isOptionalString(request.resource.data.roomLabel) &&
+        isOptionalString(request.resource.data.homeRoomTeacherId) &&
+        isOptionalString(request.resource.data.homeRoomTeacherName) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /classrooms/{classroomId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.building) &&
+        isOptionalString(request.resource.data.floor) &&
+        isOptionalPositiveInt(request.resource.data.capacity) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.building) &&
+        isOptionalString(request.resource.data.floor) &&
+        isOptionalPositiveInt(request.resource.data.capacity) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /activities/{activityId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isNonEmptyString(request.resource.data.category) &&
+        isOptionalString(request.resource.data.description) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isNonEmptyString(request.resource.data.category) &&
+        isOptionalString(request.resource.data.description) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /classOfferings/{classOfferingId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.className) &&
+        isNonEmptyString(request.resource.data.subjectId) &&
+        isNonEmptyString(request.resource.data.subjectName) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.subjectId == resource.data.subjectId &&
+        isNonEmptyString(request.resource.data.className) &&
+        isNonEmptyString(request.resource.data.subjectName) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /sections/{sectionId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.classOfferingId) &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.subjectId) &&
+        isSectionType(request.resource.data.sectionType) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.subgroupLabel) &&
+        request.resource.data.sortOrder is int &&
+        request.resource.data.sortOrder >= 1 &&
+        request.resource.data.isDefault is bool &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.classOfferingId == resource.data.classOfferingId &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.subjectId == resource.data.subjectId &&
+        isSectionType(request.resource.data.sectionType) &&
+        isNonEmptyString(request.resource.data.code) &&
+        isNonEmptyString(request.resource.data.name) &&
+        isOptionalString(request.resource.data.subgroupLabel) &&
+        request.resource.data.sortOrder is int &&
+        request.resource.data.sortOrder >= 1 &&
+        request.resource.data.isDefault is bool &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /courseAssignments/{courseAssignmentId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.classOfferingId) &&
+        isNonEmptyString(request.resource.data.sectionId) &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.subjectId) &&
+        isNonEmptyString(request.resource.data.teacherId) &&
+        isNonEmptyString(request.resource.data.teacherName) &&
+        isSectionType(request.resource.data.sectionType) &&
+        isNonEmptyString(request.resource.data.sectionName) &&
+        request.resource.data.sectionSortOrder is int &&
+        request.resource.data.sectionSortOrder >= 1 &&
+        request.resource.data.assignmentRole == 'subject_teacher' &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.classOfferingId == resource.data.classOfferingId &&
+        request.resource.data.sectionId == resource.data.sectionId &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.subjectId == resource.data.subjectId &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        isNonEmptyString(request.resource.data.teacherName) &&
+        isSectionType(request.resource.data.sectionType) &&
+        isNonEmptyString(request.resource.data.sectionName) &&
+        request.resource.data.sectionSortOrder is int &&
+        request.resource.data.sectionSortOrder >= 1 &&
+        request.resource.data.assignmentRole == 'subject_teacher' &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /timetables/{timetableId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isTimetableType(request.resource.data.timetableType) &&
+        isNonEmptyString(request.resource.data.ownerId) &&
+        isNonEmptyString(request.resource.data.ownerName) &&
+        isOptionalString(request.resource.data.ownerCode) &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isNonEmptyString(request.resource.data.termId) &&
+        isOptionalString(request.resource.data.termName) &&
+        isNonEmptyString(request.resource.data.timeStructureId) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isOptionalString(request.resource.data.classId) &&
+        isOptionalString(request.resource.data.className) &&
+        isOptionalString(request.resource.data.teacherId) &&
+        isOptionalString(request.resource.data.teacherName) &&
+        isOptionalString(request.resource.data.classroomId) &&
+        isOptionalString(request.resource.data.classroomName) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.timetableType == resource.data.timetableType &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.termId == resource.data.termId &&
+        request.resource.data.timeStructureId == resource.data.timeStructureId &&
+        isTimetableType(request.resource.data.timetableType) &&
+        isNonEmptyString(request.resource.data.ownerName) &&
+        isOptionalString(request.resource.data.ownerCode) &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isOptionalString(request.resource.data.termName) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isOptionalString(request.resource.data.classId) &&
+        isOptionalString(request.resource.data.className) &&
+        isOptionalString(request.resource.data.teacherId) &&
+        isOptionalString(request.resource.data.teacherName) &&
+        isOptionalString(request.resource.data.classroomId) &&
+        isOptionalString(request.resource.data.classroomName) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /timetableEntries/{timetableEntryId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.timetableId) &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isNonEmptyString(request.resource.data.termId) &&
+        isOptionalString(request.resource.data.termName) &&
+        isNonEmptyString(request.resource.data.timeStructureId) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isNonEmptyString(request.resource.data.dailyScheduleId) &&
+        isNonEmptyString(request.resource.data.timeSlotId) &&
+        isNonEmptyString(request.resource.data.weekdayKey) &&
+        isOptionalString(request.resource.data.weekdayLabel) &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.slotIndex is int &&
+        request.resource.data.slotIndex >= 1 &&
+        isNonEmptyString(request.resource.data.startTime) &&
+        isNonEmptyString(request.resource.data.endTime) &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        request.resource.data.slotType == 'teaching' &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.className) &&
+        isOptionalString(request.resource.data.classCode) &&
+        isNonEmptyString(request.resource.data.subjectId) &&
+        isNonEmptyString(request.resource.data.subjectName) &&
+        isOptionalString(request.resource.data.subjectCode) &&
+        isOptionalString(request.resource.data.subjectShortName) &&
+        (
+          request.resource.data.subjectType == 'core' ||
+          request.resource.data.subjectType == 'elective'
+        ) &&
+        isOptionalString(request.resource.data.learningAreaId) &&
+        isOptionalString(request.resource.data.learningAreaName) &&
+        isOptionalString(request.resource.data.colorToken) &&
+        isOptionalString(request.resource.data.colorHex) &&
+        isNonEmptyString(request.resource.data.classOfferingId) &&
+        isNonEmptyString(request.resource.data.sectionId) &&
+        isNonEmptyString(request.resource.data.sectionName) &&
+        isSectionType(request.resource.data.sectionType) &&
+        request.resource.data.teacherIds is list &&
+        request.resource.data.teacherIds.size() > 0 &&
+        request.resource.data.teacherNames is list &&
+        request.resource.data.teacherNames.size() > 0 &&
+        isOptionalString(request.resource.data.teacherDisplay) &&
+        request.resource.data.teacherTimetableIds is list &&
+        request.resource.data.teacherTimetableIds.size() > 0 &&
+        isNonEmptyString(request.resource.data.classroomId) &&
+        isNonEmptyString(request.resource.data.classroomName) &&
+        isOptionalString(request.resource.data.classroomCode) &&
+        isNonEmptyString(request.resource.data.roomTimetableId) &&
+        isStatus(request.resource.data.status);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.timetableId == resource.data.timetableId &&
+        request.resource.data.termId == resource.data.termId &&
+        request.resource.data.timeStructureId == resource.data.timeStructureId &&
+        request.resource.data.timeSlotId == resource.data.timeSlotId &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.sectionId == resource.data.sectionId &&
+        request.resource.data.slotType == 'teaching' &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        request.resource.data.slotIndex is int &&
+        request.resource.data.slotIndex >= 1 &&
+        isNonEmptyString(request.resource.data.startTime) &&
+        isNonEmptyString(request.resource.data.endTime) &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        isNonEmptyString(request.resource.data.className) &&
+        isOptionalString(request.resource.data.classCode) &&
+        isNonEmptyString(request.resource.data.subjectId) &&
+        isNonEmptyString(request.resource.data.subjectName) &&
+        isOptionalString(request.resource.data.subjectCode) &&
+        isOptionalString(request.resource.data.subjectShortName) &&
+        (
+          request.resource.data.subjectType == 'core' ||
+          request.resource.data.subjectType == 'elective'
+        ) &&
+        isOptionalString(request.resource.data.learningAreaId) &&
+        isOptionalString(request.resource.data.learningAreaName) &&
+        isOptionalString(request.resource.data.colorToken) &&
+        isOptionalString(request.resource.data.colorHex) &&
+        isNonEmptyString(request.resource.data.classOfferingId) &&
+        isNonEmptyString(request.resource.data.sectionName) &&
+        isSectionType(request.resource.data.sectionType) &&
+        request.resource.data.teacherIds is list &&
+        request.resource.data.teacherIds.size() > 0 &&
+        request.resource.data.teacherNames is list &&
+        request.resource.data.teacherNames.size() > 0 &&
+        isOptionalString(request.resource.data.teacherDisplay) &&
+        request.resource.data.teacherTimetableIds is list &&
+        request.resource.data.teacherTimetableIds.size() > 0 &&
+        isNonEmptyString(request.resource.data.classroomId) &&
+        isNonEmptyString(request.resource.data.classroomName) &&
+        isOptionalString(request.resource.data.classroomCode) &&
+        isNonEmptyString(request.resource.data.roomTimetableId) &&
+        isStatus(request.resource.data.status);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /teacherAbsences/{teacherAbsenceId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.teacherId) &&
+        isNonEmptyString(request.resource.data.teacherName) &&
+        isOptionalString(request.resource.data.teacherEmployeeCode) &&
+        isNonEmptyString(request.resource.data.date) &&
+        isNonEmptyString(request.resource.data.weekdayKey) &&
+        isOptionalString(request.resource.data.weekdayLabel) &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isNonEmptyString(request.resource.data.termId) &&
+        isOptionalString(request.resource.data.termName) &&
+        isNonEmptyString(request.resource.data.timeStructureId) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isNonEmptyString(request.resource.data.reason) &&
+        isOptionalString(request.resource.data.notes) &&
+        isAbsenceStatus(request.resource.data.status) &&
+        request.resource.data.affectedLessonCount is int &&
+        request.resource.data.affectedLessonCount >= 0;
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        request.resource.data.date == resource.data.date &&
+        request.resource.data.timeStructureId == resource.data.timeStructureId &&
+        isNonEmptyString(request.resource.data.teacherName) &&
+        isOptionalString(request.resource.data.teacherEmployeeCode) &&
+        isNonEmptyString(request.resource.data.weekdayKey) &&
+        isOptionalString(request.resource.data.weekdayLabel) &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isNonEmptyString(request.resource.data.termId) &&
+        isOptionalString(request.resource.data.termName) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isNonEmptyString(request.resource.data.reason) &&
+        isOptionalString(request.resource.data.notes) &&
+        isAbsenceStatus(request.resource.data.status) &&
+        request.resource.data.affectedLessonCount is int &&
+        request.resource.data.affectedLessonCount >= 0;
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /substitutions/{substitutionId} {
+      allow create: if isSchoolManager(request.resource.data.schoolId) &&
+        isNonEmptyString(request.resource.data.teacherAbsenceId) &&
+        isNonEmptyString(request.resource.data.timetableEntryId) &&
+        isNonEmptyString(request.resource.data.date) &&
+        isNonEmptyString(request.resource.data.weekdayKey) &&
+        isOptionalString(request.resource.data.weekdayLabel) &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isNonEmptyString(request.resource.data.termId) &&
+        isOptionalString(request.resource.data.termName) &&
+        isNonEmptyString(request.resource.data.timeStructureId) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isNonEmptyString(request.resource.data.dailyScheduleId) &&
+        isNonEmptyString(request.resource.data.timeSlotId) &&
+        isNonEmptyString(request.resource.data.absentTeacherId) &&
+        isNonEmptyString(request.resource.data.absentTeacherName) &&
+        isNonEmptyString(request.resource.data.substituteTeacherId) &&
+        isNonEmptyString(request.resource.data.substituteTeacherName) &&
+        isOptionalString(request.resource.data.substituteTeacherEmployeeCode) &&
+        isNonEmptyString(request.resource.data.classId) &&
+        isNonEmptyString(request.resource.data.className) &&
+        isNonEmptyString(request.resource.data.subjectId) &&
+        isNonEmptyString(request.resource.data.subjectName) &&
+        isNonEmptyString(request.resource.data.sectionId) &&
+        isOptionalString(request.resource.data.sectionName) &&
+        isNonEmptyString(request.resource.data.classroomId) &&
+        isNonEmptyString(request.resource.data.classroomName) &&
+        isNonEmptyString(request.resource.data.startTime) &&
+        isNonEmptyString(request.resource.data.endTime) &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        isSubstitutionStatus(request.resource.data.status) &&
+        isOptionalString(request.resource.data.notes);
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolManager(resource.data.schoolId) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.teacherAbsenceId == resource.data.teacherAbsenceId &&
+        request.resource.data.timetableEntryId == resource.data.timetableEntryId &&
+        request.resource.data.date == resource.data.date &&
+        request.resource.data.timeSlotId == resource.data.timeSlotId &&
+        request.resource.data.absentTeacherId == resource.data.absentTeacherId &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.subjectId == resource.data.subjectId &&
+        isNonEmptyString(request.resource.data.weekdayKey) &&
+        isOptionalString(request.resource.data.weekdayLabel) &&
+        request.resource.data.weekdayOrder is int &&
+        request.resource.data.weekdayOrder >= 1 &&
+        request.resource.data.weekdayOrder <= 7 &&
+        isNonEmptyString(request.resource.data.academicYearId) &&
+        isOptionalString(request.resource.data.academicYearLabel) &&
+        isNonEmptyString(request.resource.data.termId) &&
+        isOptionalString(request.resource.data.termName) &&
+        isNonEmptyString(request.resource.data.timeStructureId) &&
+        isOptionalString(request.resource.data.timeStructureName) &&
+        isNonEmptyString(request.resource.data.dailyScheduleId) &&
+        isNonEmptyString(request.resource.data.absentTeacherName) &&
+        isNonEmptyString(request.resource.data.substituteTeacherId) &&
+        isNonEmptyString(request.resource.data.substituteTeacherName) &&
+        isOptionalString(request.resource.data.substituteTeacherEmployeeCode) &&
+        isNonEmptyString(request.resource.data.className) &&
+        isNonEmptyString(request.resource.data.subjectName) &&
+        isNonEmptyString(request.resource.data.sectionId) &&
+        isOptionalString(request.resource.data.sectionName) &&
+        isNonEmptyString(request.resource.data.classroomId) &&
+        isNonEmptyString(request.resource.data.classroomName) &&
+        isNonEmptyString(request.resource.data.startTime) &&
+        isNonEmptyString(request.resource.data.endTime) &&
+        request.resource.data.startTime < request.resource.data.endTime &&
+        isSubstitutionStatus(request.resource.data.status) &&
+        isOptionalString(request.resource.data.notes);
+
+      allow delete: if isSchoolManager(resource.data.schoolId);
+    }
+
+    match /editingSessions/{editingSessionId} {
+      allow create: if isSchoolMember(request.resource.data.schoolId) &&
+        request.auth.uid == request.resource.data.userId &&
+        isNonEmptyString(request.resource.data.resourceType) &&
+        isNonEmptyString(request.resource.data.resourceId) &&
+        isOptionalString(request.resource.data.resourceLabel) &&
+        isOptionalString(request.resource.data.ownerType) &&
+        isOptionalString(request.resource.data.ownerId) &&
+        isOptionalString(request.resource.data.ownerLabel) &&
+        isNonEmptyString(request.resource.data.userDisplayName) &&
+        isOptionalString(request.resource.data.userEmail) &&
+        isOptionalString(request.resource.data.userPhotoURL) &&
+        isOptionalString(request.resource.data.userRole) &&
+        request.resource.data.lockMode == 'soft' &&
+        request.resource.data.heartbeatAtMs is int &&
+        request.resource.data.heartbeatAtMs > 0;
+
+      allow read: if isSchoolMember(resource.data.schoolId);
+
+      allow update: if isSchoolMember(resource.data.schoolId) &&
+        request.auth.uid == resource.data.userId &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.resourceType == resource.data.resourceType &&
+        request.resource.data.resourceId == resource.data.resourceId &&
+        request.resource.data.userId == resource.data.userId &&
+        isOptionalString(request.resource.data.resourceLabel) &&
+        isOptionalString(request.resource.data.ownerType) &&
+        isOptionalString(request.resource.data.ownerId) &&
+        isOptionalString(request.resource.data.ownerLabel) &&
+        isNonEmptyString(request.resource.data.userDisplayName) &&
+        isOptionalString(request.resource.data.userEmail) &&
+        isOptionalString(request.resource.data.userPhotoURL) &&
+        isOptionalString(request.resource.data.userRole) &&
+        request.resource.data.lockMode == 'soft' &&
+        request.resource.data.heartbeatAtMs is int &&
+        request.resource.data.heartbeatAtMs > 0;
+
+      allow delete: if isSignedIn() &&
+        (
+          request.auth.uid == resource.data.userId ||
+          isSchoolManager(resource.data.schoolId)
+        );
+    }
+  }
+}
