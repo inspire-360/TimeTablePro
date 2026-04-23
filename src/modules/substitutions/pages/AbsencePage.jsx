@@ -510,9 +510,9 @@ export function AbsencePage() {
 
   return (
     <AcademicPageShell
-      eyebrow="Teacher Coverage"
-      title="Teacher Absences"
-      description="Record school-scoped teacher absences by date and preview the lessons that need substitute coverage."
+      eyebrow="การสอนแทน"
+      title="บันทึกครูลา"
+      description="บันทึกการลาของครูตามวันที่ และตรวจคาบสอนที่ต้องจัดครูสอนแทน"
       error={error}
       summary={
         <div className="academic-summary__grid">

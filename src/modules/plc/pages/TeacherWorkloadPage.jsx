@@ -403,9 +403,9 @@ export function TeacherWorkloadPage() {
 
   return (
     <AcademicPageShell
-      eyebrow="Teacher Collaboration"
-      title="Teacher Workload"
-      description="Apply teacher-specific PLC overrides without changing the student timetable. PLC assignments block teacher availability only."
+      eyebrow="ภาระงานครู"
+      title="ปรับภาระงานและ PLC รายครู"
+      description="กำหนดข้อยกเว้น PLC รายครูโดยไม่กระทบตารางเรียนนักเรียน ช่วง PLC จะบล็อกเฉพาะเวลาครู"
       error={error}
       summary={
         <div className="academic-summary__grid">

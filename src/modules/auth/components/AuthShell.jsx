@@ -4,24 +4,24 @@ export function AuthShell({ children }) {
       <section className="auth-screen__intro">
         <div className="auth-screen__intro-panel">
           <p className="auth-screen__eyebrow">Timetable Pro</p>
-          <h1 className="auth-screen__title">Authentication foundation for Thai schools</h1>
+          <h1 className="auth-screen__title">ระบบจัดตารางเรียนสำหรับโรงเรียนไทย</h1>
           <p className="auth-screen__copy">
-            This phase only delivers secure sign-in, role-based access, Firestore profile sync,
-            and automatic redirect into protected routes.
+            เข้าสู่ระบบครั้งเดียว แล้วใช้งานข้อมูลโรงเรียน ตารางสอน ภาระงานครู
+            และเอกสารส่งออกได้อย่างปลอดภัย
           </p>
 
-          <div className="auth-screen__highlights" aria-label="Auth capabilities">
+          <div className="auth-screen__highlights" aria-label="ความสามารถของระบบเข้าสู่ระบบ">
             <div>
               <span className="auth-screen__metric">Google</span>
-              <p>Popup sign-in for fast teacher and admin access.</p>
+              <p>ครูและผู้ดูแลระบบเข้าสู่ระบบได้รวดเร็วโดยไม่ต้องกรอก School ID</p>
             </div>
             <div>
-              <span className="auth-screen__metric">Email</span>
-              <p>Email/password sign-in and registration with profile creation.</p>
+              <span className="auth-screen__metric">อีเมล</span>
+              <p>รองรับอีเมลและรหัสผ่านสำหรับบัญชีภายในโรงเรียน</p>
             </div>
             <div>
-              <span className="auth-screen__metric">Roles</span>
-              <p>super_admin, school_admin, academic_admin, teacher, and student.</p>
+              <span className="auth-screen__metric">บทบาท</span>
+              <p>แยกสิทธิ์ผู้ดูแลโรงเรียน ฝ่ายวิชาการ ครู และนักเรียน</p>
             </div>
           </div>
         </div>

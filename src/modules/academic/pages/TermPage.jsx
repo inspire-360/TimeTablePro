@@ -254,8 +254,8 @@ export function TermPage() {
 
   return (
     <AcademicPageShell
-      title="Terms"
-      description="Manage school-scoped terms in the terms collection. Active term selection falls back to date ranges when no explicit active record exists."
+      title="ภาคเรียน"
+      description="จัดการภาคเรียนของโรงเรียน ระบบจะใช้ภาคเรียนที่เปิดใช้งาน หรือคำนวณจากช่วงวันที่เมื่อยังไม่ได้เลือกภาคเรียนปัจจุบัน"
       error={error}
       summary={
         <div className="academic-summary__grid">

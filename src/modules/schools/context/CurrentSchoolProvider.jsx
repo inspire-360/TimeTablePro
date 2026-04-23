@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../auth/context/useAuth';
+import { applySchoolTheme } from '../../theme/helpers/applySchoolTheme';
 import {
   createDraftSchoolSettings,
   subscribeSchoolSettingsById,
@@ -105,7 +106,7 @@ export function CurrentSchoolProvider({ children }) {
       setState((current) => ({
         ...current,
         status: 'error',
-        error: getErrorMessage(error, 'Unable to load school data.'),
+        error: getErrorMessage(error, 'ไม่สามารถโหลดข้อมูลโรงเรียนได้'),
       }));
     }
   }, [isAuthenticated, isAuthLoading, loadAccessibleSchools, profile?.schoolId]);
@@ -113,6 +114,10 @@ export function CurrentSchoolProvider({ children }) {
   useEffect(() => {
     void bootstrapSchools();
   }, [bootstrapSchools]);
+
+  useEffect(() => {
+    applySchoolTheme(state.currentSchoolSettings.theme);
+  }, [state.currentSchoolSettings.theme]);
 
   useEffect(() => {
     if (!isAuthenticated || isAuthLoading || profile?.role !== 'super_admin') {
@@ -144,7 +149,7 @@ export function CurrentSchoolProvider({ children }) {
           setState((current) => ({
             ...current,
             status: 'error',
-            error: getErrorMessage(snapshotError, 'Unable to live sync schools.'),
+            error: getErrorMessage(snapshotError, 'ไม่สามารถซิงก์ข้อมูลโรงเรียนได้'),
           }));
         },
       });
@@ -180,7 +185,7 @@ export function CurrentSchoolProvider({ children }) {
           setState((current) => ({
             ...current,
             status: 'error',
-            error: getErrorMessage(snapshotError, 'Unable to live sync the current school.'),
+            error: getErrorMessage(snapshotError, 'ไม่สามารถซิงก์โรงเรียนปัจจุบันได้'),
           }));
         },
       });
@@ -198,7 +203,7 @@ export function CurrentSchoolProvider({ children }) {
           setState((current) => ({
             ...current,
             status: 'error',
-            error: getErrorMessage(snapshotError, 'Unable to live sync school settings.'),
+            error: getErrorMessage(snapshotError, 'ไม่สามารถซิงก์การตั้งค่าโรงเรียนได้'),
           }));
         },
       });
@@ -232,7 +237,7 @@ export function CurrentSchoolProvider({ children }) {
     const normalizedSchoolId = payload.schoolId.trim();
 
     if (!normalizedSchoolId) {
-      throw new Error('schoolId is required.');
+      throw new Error('ไม่พบรหัสโรงเรียน');
     }
 
     setState((current) => ({
@@ -252,6 +257,7 @@ export function CurrentSchoolProvider({ children }) {
         upsertSchoolSettings({
           schoolId: normalizedSchoolId,
           signatures: payload.signatures,
+          theme: payload.theme,
         }),
       ]);
 
@@ -279,7 +285,7 @@ export function CurrentSchoolProvider({ children }) {
         ...current,
         isSaving: false,
         status: 'error',
-        error: getErrorMessage(error, 'Unable to save school settings.'),
+        error: getErrorMessage(error, 'ไม่สามารถบันทึกการตั้งค่าโรงเรียนได้'),
       }));
       throw error;
     }

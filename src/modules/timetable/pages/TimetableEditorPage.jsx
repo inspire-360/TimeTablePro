@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppLoader } from '../../../shared/ui/AppLoader';
 import { FormMessage } from '../../../shared/ui/FormMessage';
@@ -7,6 +8,7 @@ import { AcademicPageShell } from '../../academic/components/AcademicPageShell';
 import { listAcademicYearsBySchool } from '../../academic/api/academicYearRepository';
 import { listTermsBySchool } from '../../academic/api/termRepository';
 import { getActiveTerm } from '../../academic/helpers/getActiveTerm';
+import { useAuth } from '../../auth/context/useAuth';
 import { listMasterDataRecords } from '../../master-data/api/masterDataRepository';
 import { listTeacherPlcAssignmentsBySchool } from '../../plc/api/teacherPlcAssignmentRepository';
 import { PresenceIndicator } from '../../realtime/components/PresenceIndicator';
@@ -43,6 +45,8 @@ import {
   createEmptySuggestionResult,
   suggestAvailableSlots,
 } from '../helpers/suggestionEngine';
+import { getTimetablePublicationState } from '../helpers/timetablePublication';
+import { publishTimetableVersion } from '../services/publishTimetableVersion';
 
 function sortByLabel(records = [], labelBuilder) {
   return [...records].sort((left, right) =>
@@ -182,7 +186,20 @@ function ConflictIssueGroup({ issues, title, tone }) {
   );
 }
 
+function formatTimestamp(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value?.toDate === 'function') {
+    return dayjs(value.toDate()).format('DD/MM/YYYY HH:mm');
+  }
+
+  return dayjs(value).format('DD/MM/YYYY HH:mm');
+}
+
 export function TimetableEditorPage() {
+  const { profile } = useAuth();
   const { currentSchool, currentSchoolId } = useCurrentSchool();
   const schoolId = currentSchoolId || currentSchool.schoolId || '';
   const [academicYears, setAcademicYears] = useState([]);
@@ -215,6 +232,7 @@ export function TimetableEditorPage() {
   const [conflictStatus, setConflictStatus] = useState('idle');
   const [conflicts, setConflicts] = useState(() => createConflictResult());
   const [isAutoPlacing, setIsAutoPlacing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [feedback, setFeedback] = useState({ tone: '', message: '' });
   const [error, setError] = useState('');
 
@@ -367,6 +385,14 @@ export function TimetableEditorPage() {
     schoolId,
   });
   const softLockActive = editingSession.softLockActive;
+  const publicationState = useMemo(
+    () => getTimetablePublicationState(workingTimetable),
+    [workingTimetable],
+  );
+  const lastPublishedLabel = useMemo(
+    () => formatTimestamp(workingTimetable?.lastPublishedAt),
+    [workingTimetable?.lastPublishedAt],
+  );
   const suggestionResult = useMemo(() => {
     if (!canSuggestSlots || suggestionStatus === 'loading') {
       return createEmptySuggestionResult();
@@ -921,7 +947,7 @@ export function TimetableEditorPage() {
       await saveTimetableBundle(nextValidation.nextEntry);
       setFeedback({
         tone: 'success',
-        message: 'Timetable entry saved successfully.',
+        message: 'Timetable entry saved to the working draft.',
       });
     } catch (saveError) {
       setFeedback({
@@ -985,6 +1011,64 @@ export function TimetableEditorPage() {
     }
   }
 
+  async function handlePublishTimetable() {
+    if (timetableType !== 'class') {
+      setFeedback({
+        tone: 'info',
+        message: 'Publish workflow is managed from the class timetable view.',
+      });
+      return;
+    }
+
+    if (!workingTimetable?.id) {
+      setFeedback({
+        tone: 'error',
+        message: 'Save at least one class timetable entry before publishing.',
+      });
+      return;
+    }
+
+    if (entries.length === 0) {
+      setFeedback({
+        tone: 'error',
+        message: 'Add at least one lesson before publishing the timetable.',
+      });
+      return;
+    }
+
+    if (softLockActive) {
+      setFeedback({
+        tone: 'warning',
+        message:
+          'Another editor is active on this class timetable. Wait for the soft lock to clear before publishing.',
+      });
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+      setFeedback({ tone: '', message: '' });
+      const publicationResult = await publishTimetableVersion({
+        entries,
+        profile,
+        timetable: workingTimetable,
+      });
+
+      setFeedback({
+        tone: 'success',
+        message: `Published timetable version v${publicationResult.publishedVersionNumber} successfully.`,
+      });
+    } catch (publishError) {
+      setFeedback({
+        tone: 'error',
+        message:
+          publishError instanceof Error ? publishError.message : 'Unable to publish the timetable.',
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
   async function handleDeleteEntry(entryId) {
     if (softLockActive) {
       setFeedback({
@@ -997,10 +1081,13 @@ export function TimetableEditorPage() {
 
     try {
       setFeedback({ tone: '', message: '' });
-      await deleteTimetableEntry(entryId);
+      await deleteTimetableEntry({
+        entryId,
+        timetableId: workingTimetable?.id || '',
+      });
       setFeedback({
         tone: 'success',
-        message: 'Timetable entry removed successfully.',
+        message: 'Timetable entry removed from the working draft.',
       });
     } catch (deleteError) {
       setFeedback({
@@ -1035,12 +1122,18 @@ export function TimetableEditorPage() {
     activeAcademicYear &&
     activeTerm &&
     selectedTimeStructure;
+  const canPublishTimetable =
+    timetableType === 'class' &&
+    Boolean(workingTimetable?.id) &&
+    entries.length > 0 &&
+    !softLockActive &&
+    (workingTimetable?.hasUnpublishedChanges || !workingTimetable?.hasPublishedVersion);
 
   return (
     <AcademicPageShell
-      eyebrow="Timetable"
-      title="Timetable Editor"
-      description="Build class timetables on top of dynamic time slots, then review synchronized teacher and room views from the same school-scoped entry set."
+      eyebrow="ตารางสอน"
+      title="แก้ไขตารางสอน"
+      description="จัดตารางสอนจาก timeSlots แบบ dynamic แล้วตรวจดูมุมมองครูและห้องเรียนที่ sync จากข้อมูลชุดเดียวกัน"
       error={error}
       summary={
         <div className="academic-summary__grid">
@@ -1049,9 +1142,12 @@ export function TimetableEditorPage() {
           <StatusPill tone="neutral">
             Structure: {selectedTimeStructure?.name || 'No time structure'}
           </StatusPill>
-          <StatusPill tone={workingTimetable ? 'success' : 'neutral'}>
-            {workingTimetable ? 'Saved timetable' : 'Draft timetable'}
+          <StatusPill tone={publicationState.tone}>
+            Publication: {publicationState.label}
           </StatusPill>
+          {lastPublishedLabel ? (
+            <StatusPill tone="neutral">Last publish: {lastPublishedLabel}</StatusPill>
+          ) : null}
           <StatusPill tone="neutral">Grid entries: {entries.length}</StatusPill>
           <StatusPill tone={softLockActive ? 'warning' : 'success'}>
             Realtime: {editingSession.status === 'idle' ? 'On' : 'Connected'}
@@ -1187,6 +1283,79 @@ export function TimetableEditorPage() {
             <section className="academic-form-card">
               <div className="academic-list-card__header">
                 <div>
+                  <p className="auth-card__eyebrow">Publication</p>
+                  <h2 className="academic-list-card__title">Draft And Publish</h2>
+                </div>
+                <StatusPill tone={publicationState.tone}>{publicationState.label}</StatusPill>
+              </div>
+
+              {timetableType !== 'class' ? (
+                <FormMessage tone="info">
+                  Publish workflow is handled from the class timetable because teacher and room
+                  views are synchronized outputs from class lessons.
+                </FormMessage>
+              ) : null}
+
+              {timetableType === 'class' ? (
+                <div className="timetable-publication-card">
+                  <div className="academic-summary__grid">
+                    <StatusPill tone="neutral">
+                      Current entries: {entries.length}
+                    </StatusPill>
+                    <StatusPill tone={workingTimetable?.hasPublishedVersion ? 'success' : 'neutral'}>
+                      Published version: v{workingTimetable?.publishedVersionNumber || 0}
+                    </StatusPill>
+                    <StatusPill
+                      tone={workingTimetable?.hasUnpublishedChanges ? 'warning' : 'success'}
+                    >
+                      Draft state: {workingTimetable?.hasUnpublishedChanges ? 'Pending changes' : 'Aligned'}
+                    </StatusPill>
+                  </div>
+
+                  {lastPublishedLabel ? (
+                    <div className="timetable-publication-meta">
+                      <strong>Last published</strong>
+                      <span>{lastPublishedLabel}</span>
+                    </div>
+                  ) : (
+                    <FormMessage tone="info">
+                      This class timetable has not been published yet. Save the draft, review
+                      conflicts, then publish when ready.
+                    </FormMessage>
+                  )}
+
+                  {!workingTimetable?.id ? (
+                    <FormMessage tone="info">
+                      Save at least one lesson to create the draft timetable document before
+                      publishing.
+                    </FormMessage>
+                  ) : null}
+
+                  {workingTimetable?.id && !workingTimetable?.hasUnpublishedChanges && workingTimetable?.hasPublishedVersion ? (
+                    <FormMessage tone="success">
+                      The current draft already matches the latest published timetable.
+                    </FormMessage>
+                  ) : null}
+
+                  <div className="timetable-publication-actions">
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={!canPublishTimetable || isPublishing}
+                      onClick={() => {
+                        void handlePublishTimetable();
+                      }}
+                    >
+                      {isPublishing ? 'Publishing...' : 'Publish current draft'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+
+            <section className="academic-form-card">
+              <div className="academic-list-card__header">
+                <div>
                   <p className="auth-card__eyebrow">Entry editor</p>
                   <h2 className="academic-list-card__title">Create Timetable Entry</h2>
                 </div>
@@ -1285,13 +1454,13 @@ export function TimetableEditorPage() {
                     ) : null}
                     {conflictStatus !== 'loading' && canPreviewConflicts ? (
                       <div className="timetable-conflict-stack">
-                        <ConflictIssueGroup issues={conflicts.error} title="Errors" tone="error" />
+                        <ConflictIssueGroup issues={conflicts.error} title="ข้อผิดพลาด" tone="error" />
                         <ConflictIssueGroup
                           issues={conflicts.warning}
-                          title="Warnings"
+                          title="คำเตือน"
                           tone="warning"
                         />
-                        <ConflictIssueGroup issues={conflicts.info} title="Info" tone="info" />
+                        <ConflictIssueGroup issues={conflicts.info} title="ข้อมูล" tone="info" />
                       </div>
                     ) : null}
                   </div>

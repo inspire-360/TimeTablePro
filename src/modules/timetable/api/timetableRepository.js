@@ -12,6 +12,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../core/firebase/client';
 import { buildTimetableId } from '../helpers/createEntry';
+import {
+  filterTimetableRecordsByPublication,
+  isPublishedPublicationView,
+  normalizePublicationStatus,
+  TIMETABLE_PUBLICATION_STATUS,
+} from '../helpers/timetablePublication';
 
 function normalizeTimetable(snapshot) {
   const data = snapshot.data();
@@ -36,6 +42,22 @@ function normalizeTimetable(snapshot) {
     classroomId: data.classroomId || '',
     classroomName: data.classroomName || '',
     status: data.status || 'active',
+    publicationStatus: normalizePublicationStatus(data.publicationStatus),
+    hasPublishedVersion: Boolean(data.hasPublishedVersion),
+    hasUnpublishedChanges: Boolean(data.hasUnpublishedChanges),
+    publishedVersionNumber: Number(data.publishedVersionNumber) || 0,
+    versionNumber: Number(data.versionNumber) || 0,
+    latestPublishedSnapshotId: data.latestPublishedSnapshotId || '',
+    lastPublishedAt: data.lastPublishedAt ?? null,
+    lastPublishedByDisplayName: data.lastPublishedByDisplayName || '',
+    lastPublishedByEmail: data.lastPublishedByEmail || '',
+    lastPublishedByUserId: data.lastPublishedByUserId || '',
+    publishedAt: data.publishedAt ?? null,
+    publishedByDisplayName: data.publishedByDisplayName || '',
+    publishedByEmail: data.publishedByEmail || '',
+    publishedByUserId: data.publishedByUserId || '',
+    sourceTimetableId: data.sourceTimetableId || '',
+    isCurrentPublished: Boolean(data.isCurrentPublished),
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };
@@ -88,6 +110,16 @@ function normalizeTimetableEntry(snapshot) {
     classroomCode: data.classroomCode || '',
     roomTimetableId: data.roomTimetableId || '',
     status: data.status || 'active',
+    publicationStatus: normalizePublicationStatus(data.publicationStatus),
+    versionNumber: Number(data.versionNumber) || 0,
+    publishedVersionNumber: Number(data.publishedVersionNumber) || 0,
+    sourceTimetableId: data.sourceTimetableId || data.timetableId || '',
+    draftEntryId: data.draftEntryId || '',
+    isCurrentPublished: Boolean(data.isCurrentPublished),
+    publishedAt: data.publishedAt ?? null,
+    publishedByDisplayName: data.publishedByDisplayName || '',
+    publishedByEmail: data.publishedByEmail || '',
+    publishedByUserId: data.publishedByUserId || '',
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };
@@ -107,6 +139,16 @@ function sortTimetableEntries(entries = []) {
   });
 }
 
+function filterAndSortTimetableEntries(entries = [], publicationView) {
+  const publicationScopedEntries = filterTimetableRecordsByPublication(entries, publicationView);
+
+  return sortTimetableEntries(
+    isPublishedPublicationView(publicationView)
+      ? publicationScopedEntries.filter((entry) => entry.status === 'active')
+      : publicationScopedEntries,
+  );
+}
+
 async function getCreatedAtValue(documentRef) {
   const snapshot = await getDoc(documentRef);
   return snapshot.exists() ? snapshot.data().createdAt || serverTimestamp() : serverTimestamp();
@@ -114,38 +156,32 @@ async function getCreatedAtValue(documentRef) {
 
 function buildTimetableEntriesQuery({
   ownerId,
+  publicationView,
   schoolId,
   termId,
   timeStructureId,
   timetableType,
 }) {
+  const filters = [
+    where('schoolId', '==', schoolId),
+    where('termId', '==', termId),
+    where('timeStructureId', '==', timeStructureId),
+  ];
+
+  if (isPublishedPublicationView(publicationView)) {
+    filters.push(where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED));
+    filters.push(where('status', '==', 'active'));
+  }
+
   if (timetableType === 'teacher') {
-    return query(
-      collection(db, 'timetableEntries'),
-      where('schoolId', '==', schoolId),
-      where('teacherIds', 'array-contains', ownerId),
-      where('termId', '==', termId),
-      where('timeStructureId', '==', timeStructureId),
-    );
+    return query(collection(db, 'timetableEntries'), where('teacherIds', 'array-contains', ownerId), ...filters);
   }
 
   if (timetableType === 'room') {
-    return query(
-      collection(db, 'timetableEntries'),
-      where('schoolId', '==', schoolId),
-      where('classroomId', '==', ownerId),
-      where('termId', '==', termId),
-      where('timeStructureId', '==', timeStructureId),
-    );
+    return query(collection(db, 'timetableEntries'), where('classroomId', '==', ownerId), ...filters);
   }
 
-  return query(
-    collection(db, 'timetableEntries'),
-    where('schoolId', '==', schoolId),
-    where('classId', '==', ownerId),
-    where('termId', '==', termId),
-    where('timeStructureId', '==', timeStructureId),
-  );
+  return query(collection(db, 'timetableEntries'), where('classId', '==', ownerId), ...filters);
 }
 
 export async function getTimetableByScope({
@@ -211,6 +247,7 @@ export function subscribeTimetableByScope({
 
 export async function listTimetableEntriesByClass({
   classId,
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   termId,
   timeStructureId,
@@ -226,16 +263,23 @@ export async function listTimetableEntriesByClass({
       where('classId', '==', classId),
       where('termId', '==', termId),
       where('timeStructureId', '==', timeStructureId),
+      ...(isPublishedPublicationView(publicationView)
+        ? [
+            where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED),
+            where('status', '==', 'active'),
+          ]
+        : []),
     ),
   );
 
-  return sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry));
+  return filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView);
 }
 
 export function subscribeTimetableEntriesByScope({
   onChange,
   onError,
   ownerId,
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   termId,
   timeStructureId,
@@ -249,13 +293,16 @@ export function subscribeTimetableEntriesByScope({
   return onSnapshot(
     buildTimetableEntriesQuery({
       ownerId,
+      publicationView,
       schoolId,
       termId,
       timeStructureId,
       timetableType,
     }),
     (snapshot) => {
-      onChange(sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry)));
+      onChange(
+        filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView),
+      );
     },
     onError,
   );
@@ -264,6 +311,7 @@ export function subscribeTimetableEntriesByScope({
 export function subscribeTimetableEntriesByContext({
   onChange,
   onError,
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   termId,
   timeStructureId,
@@ -279,15 +327,24 @@ export function subscribeTimetableEntriesByContext({
       where('schoolId', '==', schoolId),
       where('termId', '==', termId),
       where('timeStructureId', '==', timeStructureId),
+      ...(isPublishedPublicationView(publicationView)
+        ? [
+            where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED),
+            where('status', '==', 'active'),
+          ]
+        : []),
     ),
     (snapshot) => {
-      onChange(sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry)));
+      onChange(
+        filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView),
+      );
     },
     onError,
   );
 }
 
 export async function listTimetableEntriesByTeacher({
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   teacherId,
   termId,
@@ -304,14 +361,21 @@ export async function listTimetableEntriesByTeacher({
       where('teacherIds', 'array-contains', teacherId),
       where('termId', '==', termId),
       where('timeStructureId', '==', timeStructureId),
+      ...(isPublishedPublicationView(publicationView)
+        ? [
+            where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED),
+            where('status', '==', 'active'),
+          ]
+        : []),
     ),
   );
 
-  return sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry));
+  return filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView);
 }
 
 export async function listTimetableEntriesByRoom({
   classroomId,
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   termId,
   timeStructureId,
@@ -327,13 +391,20 @@ export async function listTimetableEntriesByRoom({
       where('classroomId', '==', classroomId),
       where('termId', '==', termId),
       where('timeStructureId', '==', timeStructureId),
+      ...(isPublishedPublicationView(publicationView)
+        ? [
+            where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED),
+            where('status', '==', 'active'),
+          ]
+        : []),
     ),
   );
 
-  return sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry));
+  return filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView);
 }
 
 export async function listTimetableEntriesByTimeSlot({
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   termId,
   timeSlotId,
@@ -350,13 +421,20 @@ export async function listTimetableEntriesByTimeSlot({
       where('termId', '==', termId),
       where('timeSlotId', '==', timeSlotId),
       where('timeStructureId', '==', timeStructureId),
+      ...(isPublishedPublicationView(publicationView)
+        ? [
+            where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED),
+            where('status', '==', 'active'),
+          ]
+        : []),
     ),
   );
 
-  return sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry));
+  return filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView);
 }
 
 export async function listTimetableEntriesByContext({
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   schoolId,
   termId,
   timeStructureId,
@@ -371,10 +449,16 @@ export async function listTimetableEntriesByContext({
       where('schoolId', '==', schoolId),
       where('termId', '==', termId),
       where('timeStructureId', '==', timeStructureId),
+      ...(isPublishedPublicationView(publicationView)
+        ? [
+            where('publicationStatus', '==', TIMETABLE_PUBLICATION_STATUS.PUBLISHED),
+            where('status', '==', 'active'),
+          ]
+        : []),
     ),
   );
 
-  return sortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry));
+  return filterAndSortTimetableEntries(snapshot.docs.map(normalizeTimetableEntry), publicationView);
 }
 
 export async function saveTimetableBundle({ entry, timetablePayloads = [] }) {
@@ -406,10 +490,18 @@ export async function saveTimetableBundle({ entry, timetablePayloads = [] }) {
   const entryCreatedAt = await getCreatedAtValue(entryRef);
 
   timetableEntries.forEach((timetable) => {
+    const isClassTimetable = timetable.payload.timetableType === 'class';
+
     batch.set(
       timetable.ref,
       {
         ...timetable.payload,
+        publicationStatus: normalizePublicationStatus(timetable.payload.publicationStatus),
+        ...(isClassTimetable
+          ? {
+              hasUnpublishedChanges: true,
+            }
+          : {}),
         createdAt: timetable.createdAt,
         updatedAt: serverTimestamp(),
       },
@@ -421,6 +513,7 @@ export async function saveTimetableBundle({ entry, timetablePayloads = [] }) {
     entryRef,
     {
       ...entry.payload,
+      publicationStatus: normalizePublicationStatus(entry.payload.publicationStatus),
       createdAt: entryCreatedAt,
       updatedAt: serverTimestamp(),
     },
@@ -433,6 +526,31 @@ export async function saveTimetableBundle({ entry, timetablePayloads = [] }) {
   return normalizeTimetableEntry(savedEntrySnapshot);
 }
 
-export async function deleteTimetableEntry(entryId) {
-  await deleteDoc(doc(db, 'timetableEntries', entryId));
+export async function deleteTimetableEntry(target) {
+  const entryId = typeof target === 'string' ? target : target?.entryId;
+  const timetableId = typeof target === 'string' ? '' : target?.timetableId || '';
+
+  if (!entryId) {
+    throw new Error('A timetable entry id is required before deleting.');
+  }
+
+  if (!timetableId) {
+    await deleteDoc(doc(db, 'timetableEntries', entryId));
+    return;
+  }
+
+  const batch = writeBatch(db);
+
+  batch.delete(doc(db, 'timetableEntries', entryId));
+  batch.set(
+    doc(db, 'timetables', timetableId),
+    {
+      hasUnpublishedChanges: true,
+      publicationStatus: TIMETABLE_PUBLICATION_STATUS.DRAFT,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  await batch.commit();
 }

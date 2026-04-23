@@ -435,9 +435,9 @@ export function AssignmentPage() {
 
   return (
     <AcademicPageShell
-      eyebrow="Teaching Assignments"
-      title="Assignment Page"
-      description="Assign homeroom teachers, map subjects to classes, support multiple teachers per subject, and manage full-class or subgroup sections without building the timetable yet."
+      eyebrow="มอบหมายการสอน"
+      title="จัดครูและรายวิชาประจำชั้น"
+      description="กำหนดครูประจำชั้น รายวิชาของแต่ละห้อง ครูผู้สอนหลายคนต่อวิชา และกลุ่มเรียนแบบเต็มห้องหรือกลุ่มย่อย"
       error={error}
       summary={
         <div className="academic-summary__grid">

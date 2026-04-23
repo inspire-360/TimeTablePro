@@ -780,26 +780,26 @@ function getDashboardMeta(view) {
   if (view === 'academic_admin') {
     return {
       description:
-        'Track active-term readiness, timetable quality, PLC implementation, and substitute coverage from one academic operations view.',
-      eyebrow: 'Academic Operations',
-      title: 'Academic Admin Dashboard',
+        'ติดตามความพร้อมของภาคเรียน คุณภาพตารางสอน PLC และการสอนแทนจากหน้าปฏิบัติการเดียว',
+      eyebrow: 'งานวิชาการ',
+      title: 'แดชบอร์ดฝ่ายวิชาการ',
     };
   }
 
   if (view === 'teacher') {
     return {
       description:
-        'Review your active teaching load, personal timetable alerts, PLC blocks, and substitute activity in one place.',
-      eyebrow: 'Teaching Overview',
-      title: 'Teacher Dashboard',
+        'ดูภาระสอน ตารางของตนเอง การแจ้งเตือน PLC และงานสอนแทนในหน้ารวมเดียว',
+      eyebrow: 'ภาพรวมครู',
+      title: 'แดชบอร์ดครู',
     };
   }
 
   return {
     description:
-      'Monitor school setup, timetable health, PLC usage, and substitute readiness from one school-scoped dashboard.',
-    eyebrow: 'School Overview',
-    title: 'Admin Dashboard',
+      'ติดตามข้อมูลตั้งต้นโรงเรียน สุขภาพตารางสอน PLC และความพร้อมการสอนแทนจากแดชบอร์ดของโรงเรียน',
+    eyebrow: 'ภาพรวมโรงเรียน',
+    title: 'แดชบอร์ดผู้ดูแล',
   };
 }
 
@@ -813,34 +813,34 @@ function buildBaseSummaryPills({
 }) {
   const viewLabel =
     view === 'teacher'
-      ? 'Teacher view'
+      ? 'มุมมองครู'
       : view === 'academic_admin'
-        ? 'Academic admin view'
-        : 'Admin view';
+        ? 'มุมมองฝ่ายวิชาการ'
+        : 'มุมมองผู้ดูแล';
 
   return [
     { label: viewLabel, tone: 'info' },
     {
-      label: activeTerm?.name ? `Term: ${activeTerm.name}` : 'Term: not set',
+      label: activeTerm?.name ? `ภาคเรียน: ${activeTerm.name}` : 'ยังไม่ตั้งค่าภาคเรียน',
       tone: activeTerm?.id ? 'success' : 'warning',
     },
     {
       label:
         view === 'teacher'
-          ? `My lessons: ${timetableEntryCount}`
-          : `Lessons: ${timetableEntryCount}`,
+          ? `คาบสอนของฉัน: ${timetableEntryCount}`
+          : `คาบสอน: ${timetableEntryCount}`,
       tone: 'neutral',
     },
     {
-      label: `Errors: ${conflictSummary.errorCount}`,
+      label: `ข้อผิดพลาด: ${conflictSummary.errorCount}`,
       tone: conflictSummary.errorCount > 0 ? 'error' : 'success',
     },
     {
-      label: `Open cover: ${openCoverageCount}`,
+      label: `รอสอนแทน: ${openCoverageCount}`,
       tone: openCoverageCount > 0 ? 'warning' : 'success',
     },
     {
-      label: profile?.displayName || 'Account',
+      label: profile?.displayName || 'บัญชีผู้ใช้',
       tone: 'neutral',
     },
   ];

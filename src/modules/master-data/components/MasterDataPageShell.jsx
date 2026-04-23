@@ -11,14 +11,14 @@ export function MasterDataPageShell({
 }) {
   return (
     <AcademicPageShell
-      eyebrow="Master Data"
+      eyebrow="ข้อมูลหลัก"
       title={title}
       description={description}
       error={error}
       summary={summary}
     >
       <div className="master-data-stack">
-        <nav className="master-data-nav" aria-label="Master data pages">
+        <nav className="master-data-nav" aria-label="เมนูข้อมูลหลัก">
           {MASTER_DATA_NAV_ITEMS.map((item) => (
             <NavLink
               key={item.entityKey}

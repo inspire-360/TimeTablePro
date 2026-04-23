@@ -3,6 +3,7 @@ import { FormMessage } from '../../../shared/ui/FormMessage';
 import { SelectField } from '../../../shared/ui/SelectField';
 import { StatusPill } from '../../../shared/ui/StatusPill';
 import { useAuth } from '../../auth/context/useAuth';
+import { getAuthRoleLabel } from '../../auth/constants/authRoles';
 import { useCurrentSchool } from '../../schools/context/useCurrentSchool';
 
 function buildSchoolOptions(schools, currentSchool) {
@@ -22,20 +23,115 @@ function buildSchoolOptions(schools, currentSchool) {
 export function AcademicPageShell({
   children,
   description,
-  eyebrow = 'Academic Calendar',
+  eyebrow = 'ระบบงานวิชาการ',
   error,
   summary,
   title,
 }) {
-  const { profile } = useAuth();
+  const { logout, profile } = useAuth();
   const { currentSchool, currentSchoolId, schools, setCurrentSchoolId } = useCurrentSchool();
   const schoolOptions = buildSchoolOptions(schools, currentSchool);
   const canViewDashboard = ['super_admin', 'school_admin', 'academic_admin', 'teacher'].includes(
     profile?.role,
   );
+  const navigationItems = [
+    ...(canViewDashboard
+      ? [
+          {
+            label: 'แดชบอร์ด',
+            to: '/app/dashboard',
+          },
+        ]
+      : []),
+    {
+      label: 'ปีการศึกษา',
+      to: '/app/academic-years',
+    },
+    {
+      label: 'ภาคเรียน',
+      to: '/app/terms',
+    },
+    {
+      label: 'โครงสร้างเวลา',
+      to: '/app/time-structure',
+    },
+    {
+      label: 'นโยบาย PLC',
+      to: '/app/plc-policy',
+    },
+    {
+      label: 'ภาระงานครู',
+      to: '/app/teacher-workload',
+    },
+    {
+      label: 'ข้อมูลหลัก',
+      to: '/app/master-data',
+    },
+    {
+      label: 'มอบหมายการสอน',
+      to: '/app/assignments',
+    },
+    {
+      label: 'ตารางสอน',
+      to: '/app/timetable',
+    },
+    {
+      label: 'ส่งออกเอกสาร',
+      to: '/app/export',
+    },
+    {
+      label: 'ครูลา',
+      to: '/app/teacher-absences',
+    },
+    {
+      label: 'สอนแทน',
+      to: '/app/substitutions',
+    },
+    {
+      label: 'ตั้งค่าโรงเรียน',
+      to: '/app/school-settings',
+    },
+  ];
 
   return (
     <div className="academic-shell">
+      <header className="app-navbar">
+        <NavLink to="/app/dashboard" className="app-navbar__brand">
+          <span className="app-navbar__brand-mark">TP</span>
+          <span>
+            <strong>Timetable Pro</strong>
+            <small>{currentSchool.name || 'ระบบจัดตารางเรียน'}</small>
+          </span>
+        </NavLink>
+
+        <div className="app-navbar__tools">
+          <div className="app-navbar__school">
+            <SelectField
+              label="โรงเรียน"
+              value={currentSchoolId || currentSchool.schoolId || ''}
+              onChange={(event) => {
+                void setCurrentSchoolId(event.target.value);
+              }}
+            >
+              {schoolOptions.map((school) => (
+                <option key={school.schoolId} value={school.schoolId}>
+                  {school.name || school.schoolId}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+
+          <div className="app-navbar__user">
+            <span>{profile?.displayName || profile?.email || 'ผู้ใช้งาน'}</span>
+            <small>{getAuthRoleLabel(profile?.role)}</small>
+          </div>
+
+          <button type="button" className="secondary-button" onClick={logout}>
+            ออกจากระบบ
+          </button>
+        </div>
+      </header>
+
       <section className="academic-card">
         <header className="academic-card__header">
           <div className="academic-card__heading">
@@ -45,135 +141,24 @@ export function AcademicPageShell({
           </div>
 
           <div className="academic-card__header-tools">
-            <div className="academic-card__selector">
-              <SelectField
-                label="Current school"
-                value={currentSchoolId || currentSchool.schoolId || ''}
-                onChange={(event) => {
-                  void setCurrentSchoolId(event.target.value);
-                }}
-              >
-                {schoolOptions.map((school) => (
-                  <option key={school.schoolId} value={school.schoolId}>
-                    {school.name || school.schoolId}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
-
             <StatusPill tone="info">
-              schoolId: {currentSchoolId || currentSchool.schoolId || 'not set'}
+              โรงเรียน: {currentSchool.name || currentSchoolId || currentSchool.schoolId || 'ยังไม่ตั้งค่า'}
             </StatusPill>
           </div>
         </header>
 
-        <nav className="academic-nav" aria-label="Academic pages">
-          {canViewDashboard ? (
+        <nav className="academic-nav" aria-label="เมนูหลัก">
+          {navigationItems.map((item) => (
             <NavLink
-              to="/app/dashboard"
+              key={item.to}
+              to={item.to}
               className={({ isActive }) =>
                 `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
               }
             >
-              Dashboard
+              {item.label}
             </NavLink>
-          ) : null}
-          <NavLink
-            to="/app/academic-years"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Academic Years
-          </NavLink>
-          <NavLink
-            to="/app/terms"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Terms
-          </NavLink>
-          <NavLink
-            to="/app/time-structure"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Time Structure
-          </NavLink>
-          <NavLink
-            to="/app/plc-policy"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            PLC Policy
-          </NavLink>
-          <NavLink
-            to="/app/teacher-workload"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Teacher Workload
-          </NavLink>
-          <NavLink
-            to="/app/master-data"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Master Data
-          </NavLink>
-          <NavLink
-            to="/app/assignments"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Teaching Assignments
-          </NavLink>
-          <NavLink
-            to="/app/timetable"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Timetable
-          </NavLink>
-          <NavLink
-            to="/app/export"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Export
-          </NavLink>
-          <NavLink
-            to="/app/teacher-absences"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Teacher Absences
-          </NavLink>
-          <NavLink
-            to="/app/substitutions"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            Substitutions
-          </NavLink>
-          <NavLink
-            to="/app/school-settings"
-            className={({ isActive }) =>
-              `academic-nav__link${isActive ? ' academic-nav__link--active' : ''}`
-            }
-          >
-            School Settings
-          </NavLink>
+          ))}
         </nav>
 
         {summary ? <section className="academic-summary">{summary}</section> : null}

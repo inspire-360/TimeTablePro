@@ -59,6 +59,10 @@ export function TimetableExportPreview({ documentData, previewRef }) {
           <div className="export-document__meta">
             <p>{documentData.documentTitle}</p>
             <strong>{documentData.owner.label}</strong>
+            <span>{documentData.publicationLabel}</span>
+            {documentData.publicationTimestampLabel ? (
+              <span>Published at {documentData.publicationTimestampLabel}</span>
+            ) : null}
             <span>{documentData.academicYear?.label || 'Academic year not set'}</span>
             <span>{documentData.term.name || 'Term not set'}</span>
             <span>{documentData.timeStructure.name || 'Time structure not set'}</span>

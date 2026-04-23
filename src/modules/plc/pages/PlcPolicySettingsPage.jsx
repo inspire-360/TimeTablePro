@@ -370,9 +370,9 @@ export function PlcPolicySettingsPage() {
 
   return (
     <AcademicPageShell
-      eyebrow="Teacher Collaboration"
-      title="PLC Policy Settings"
-      description="Configure school-wide PLC days, weekly PLC hours, and the time structure used to generate teacher-only PLC blocks after the final teaching period."
+      eyebrow="PLC ครู"
+      title="ตั้งค่านโยบาย PLC"
+      description="กำหนดวัน PLC ชั่วโมงต่อสัปดาห์ และโครงสร้างเวลาที่ใช้สร้างช่วง PLC ของครูหลังคาบสอนสุดท้าย"
       error={error}
       summary={
         <div className="academic-summary__grid">

@@ -52,6 +52,14 @@ service cloud.firestore {
       return value == null || (value is int && value > 0);
     }
 
+    function isOptionalNonNegativeInt(value) {
+      return value == null || (value is int && value >= 0);
+    }
+
+    function isOptionalBool(value) {
+      return value == null || value is bool;
+    }
+
     function isSectionType(value) {
       return value == 'full_class' || value == 'subgroup';
     }
@@ -62,6 +70,10 @@ service cloud.firestore {
 
     function isTimeSlotType(value) {
       return value == 'teaching' || value == 'break' || value == 'lunch';
+    }
+
+    function isPublicationStatus(value) {
+      return value == 'draft' || value == 'published';
     }
 
     function isAbsenceStatus(value) {
@@ -652,6 +664,20 @@ service cloud.firestore {
         isOptionalString(request.resource.data.teacherName) &&
         isOptionalString(request.resource.data.classroomId) &&
         isOptionalString(request.resource.data.classroomName) &&
+        isPublicationStatus(request.resource.data.publicationStatus) &&
+        isOptionalBool(request.resource.data.hasPublishedVersion) &&
+        isOptionalBool(request.resource.data.hasUnpublishedChanges) &&
+        isOptionalNonNegativeInt(request.resource.data.publishedVersionNumber) &&
+        isOptionalNonNegativeInt(request.resource.data.versionNumber) &&
+        isOptionalString(request.resource.data.latestPublishedSnapshotId) &&
+        isOptionalString(request.resource.data.sourceTimetableId) &&
+        isOptionalBool(request.resource.data.isCurrentPublished) &&
+        isOptionalString(request.resource.data.lastPublishedByDisplayName) &&
+        isOptionalString(request.resource.data.lastPublishedByEmail) &&
+        isOptionalString(request.resource.data.lastPublishedByUserId) &&
+        isOptionalString(request.resource.data.publishedByDisplayName) &&
+        isOptionalString(request.resource.data.publishedByEmail) &&
+        isOptionalString(request.resource.data.publishedByUserId) &&
         isStatus(request.resource.data.status);
 
       allow read: if isSchoolMember(resource.data.schoolId);
@@ -675,6 +701,20 @@ service cloud.firestore {
         isOptionalString(request.resource.data.teacherName) &&
         isOptionalString(request.resource.data.classroomId) &&
         isOptionalString(request.resource.data.classroomName) &&
+        isPublicationStatus(request.resource.data.publicationStatus) &&
+        isOptionalBool(request.resource.data.hasPublishedVersion) &&
+        isOptionalBool(request.resource.data.hasUnpublishedChanges) &&
+        isOptionalNonNegativeInt(request.resource.data.publishedVersionNumber) &&
+        isOptionalNonNegativeInt(request.resource.data.versionNumber) &&
+        isOptionalString(request.resource.data.latestPublishedSnapshotId) &&
+        isOptionalString(request.resource.data.sourceTimetableId) &&
+        isOptionalBool(request.resource.data.isCurrentPublished) &&
+        isOptionalString(request.resource.data.lastPublishedByDisplayName) &&
+        isOptionalString(request.resource.data.lastPublishedByEmail) &&
+        isOptionalString(request.resource.data.lastPublishedByUserId) &&
+        isOptionalString(request.resource.data.publishedByDisplayName) &&
+        isOptionalString(request.resource.data.publishedByEmail) &&
+        isOptionalString(request.resource.data.publishedByUserId) &&
         isStatus(request.resource.data.status);
 
       allow delete: if isSchoolManager(resource.data.schoolId);
@@ -732,6 +772,15 @@ service cloud.firestore {
         isNonEmptyString(request.resource.data.classroomName) &&
         isOptionalString(request.resource.data.classroomCode) &&
         isNonEmptyString(request.resource.data.roomTimetableId) &&
+        isPublicationStatus(request.resource.data.publicationStatus) &&
+        isOptionalNonNegativeInt(request.resource.data.versionNumber) &&
+        isOptionalNonNegativeInt(request.resource.data.publishedVersionNumber) &&
+        isOptionalString(request.resource.data.sourceTimetableId) &&
+        isOptionalString(request.resource.data.draftEntryId) &&
+        isOptionalBool(request.resource.data.isCurrentPublished) &&
+        isOptionalString(request.resource.data.publishedByDisplayName) &&
+        isOptionalString(request.resource.data.publishedByEmail) &&
+        isOptionalString(request.resource.data.publishedByUserId) &&
         isStatus(request.resource.data.status);
 
       allow read: if isSchoolMember(resource.data.schoolId);
@@ -781,6 +830,15 @@ service cloud.firestore {
         isNonEmptyString(request.resource.data.classroomName) &&
         isOptionalString(request.resource.data.classroomCode) &&
         isNonEmptyString(request.resource.data.roomTimetableId) &&
+        isPublicationStatus(request.resource.data.publicationStatus) &&
+        isOptionalNonNegativeInt(request.resource.data.versionNumber) &&
+        isOptionalNonNegativeInt(request.resource.data.publishedVersionNumber) &&
+        isOptionalString(request.resource.data.sourceTimetableId) &&
+        isOptionalString(request.resource.data.draftEntryId) &&
+        isOptionalBool(request.resource.data.isCurrentPublished) &&
+        isOptionalString(request.resource.data.publishedByDisplayName) &&
+        isOptionalString(request.resource.data.publishedByEmail) &&
+        isOptionalString(request.resource.data.publishedByUserId) &&
         isStatus(request.resource.data.status);
 
       allow delete: if isSchoolManager(resource.data.schoolId);

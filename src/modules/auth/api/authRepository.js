@@ -12,14 +12,14 @@ import { syncUserProfile } from './userProfileRepository';
 
 const authErrorMessages = {
   'auth/account-exists-with-different-credential':
-    'This account already exists with a different sign-in method.',
-  'auth/email-already-in-use': 'This email is already in use.',
-  'auth/invalid-credential': 'Incorrect email or password.',
-  'auth/invalid-email': 'The email address is invalid.',
-  'auth/network-request-failed': 'Network error. Please try again.',
-  'auth/popup-closed-by-user': 'Google sign-in was cancelled before completion.',
-  'auth/too-many-requests': 'Too many attempts. Please try again later.',
-  'auth/weak-password': 'Password must be at least 8 characters.',
+    'บัญชีนี้มีอยู่แล้วด้วยวิธีเข้าสู่ระบบอื่น',
+  'auth/email-already-in-use': 'อีเมลนี้ถูกใช้งานแล้ว',
+  'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+  'auth/network-request-failed': 'เครือข่ายขัดข้อง กรุณาลองใหม่อีกครั้ง',
+  'auth/popup-closed-by-user': 'การเข้าสู่ระบบด้วย Google ถูกยกเลิก',
+  'auth/too-many-requests': 'พยายามหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง',
+  'auth/weak-password': 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
 };
 
 function mapAuthError(error, fallbackMessage) {
@@ -75,7 +75,7 @@ export async function registerWithEmailPassword({
       }
     }
 
-    throw mapAuthError(error, 'Unable to create the account right now.');
+    throw mapAuthError(error, 'ไม่สามารถสร้างบัญชีได้ในขณะนี้');
   }
 }
 
@@ -99,7 +99,7 @@ export async function loginWithEmailPassword({ email, password }) {
       }
     }
 
-    throw mapAuthError(error, 'Unable to sign in right now.');
+    throw mapAuthError(error, 'ไม่สามารถเข้าสู่ระบบได้ในขณะนี้');
   }
 }
 
@@ -123,7 +123,7 @@ export async function loginWithGoogle(profileInput = {}) {
       }
     }
 
-    throw mapAuthError(error, 'Unable to sign in with Google right now.');
+    throw mapAuthError(error, 'ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้');
   }
 }
 

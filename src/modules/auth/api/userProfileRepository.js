@@ -1,6 +1,7 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../../core/firebase/client';
 import { DEFAULT_AUTH_ROLE, isValidAuthRole } from '../constants/authRoles';
+import { resolveDefaultSchoolId } from '../../schools/constants/defaultSchool';
 
 function normalizeSchoolId(value) {
   return String(value || '')
@@ -39,11 +40,7 @@ function normalizeUserProfile(snapshot) {
 }
 
 function buildCreateProfile(user, profileInput = {}) {
-  const schoolId = normalizeSchoolId(profileInput.schoolId);
-
-  if (!schoolId) {
-    throw new Error('School ID is required to create a user profile.');
-  }
+  const schoolId = resolveDefaultSchoolId(normalizeSchoolId(profileInput.schoolId));
 
   const role = isValidAuthRole(profileInput.role) ? profileInput.role : DEFAULT_AUTH_ROLE;
   const displayName =

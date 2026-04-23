@@ -1,4 +1,5 @@
 import { getWeekdayByKey } from '../../time-structure/constants/timeStructureOptions';
+import { TIMETABLE_PUBLICATION_STATUS } from './timetablePublication';
 
 function normalizeTeacherAssignments(assignedTeachers = []) {
   const uniqueTeachers = new Map();
@@ -79,6 +80,7 @@ function createTimetablePayload({
       classroomId: timetableType === 'room' ? owner.id : '',
       classroomName: timetableType === 'room' ? getOwnerName(owner, timetableType) : '',
       status: 'active',
+      publicationStatus: TIMETABLE_PUBLICATION_STATUS.DRAFT,
     },
   };
 }
@@ -231,6 +233,10 @@ export function createEntry({
         classroomCode: classroom.code || '',
         roomTimetableId: roomTimetable.id,
         status: 'active',
+        sourceTimetableId: classTimetable.id,
+        publicationStatus: TIMETABLE_PUBLICATION_STATUS.DRAFT,
+        publishedVersionNumber: 0,
+        versionNumber: 0,
       },
     },
     timetablePayloads: [classTimetable, roomTimetable, ...teacherTimetables],

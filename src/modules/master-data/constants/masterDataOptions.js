@@ -1,11 +1,11 @@
 export const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
+  { value: 'active', label: 'ใช้งาน' },
+  { value: 'inactive', label: 'ปิดใช้งาน' },
 ];
 
 export const SUBJECT_TYPE_OPTIONS = [
-  { value: 'core', label: 'Core' },
-  { value: 'elective', label: 'Elective' },
+  { value: 'core', label: 'พื้นฐาน' },
+  { value: 'elective', label: 'เพิ่มเติม' },
 ];
 
 export const GRADE_LEVEL_OPTIONS = [
@@ -27,10 +27,10 @@ export const GRADE_LEVEL_OPTIONS = [
 ];
 
 export const ACTIVITY_CATEGORY_OPTIONS = [
-  { value: 'assembly', label: 'Assembly' },
-  { value: 'club', label: 'Club' },
-  { value: 'guidance', label: 'Guidance' },
-  { value: 'sport', label: 'Sport' },
-  { value: 'special-program', label: 'Special Program' },
-  { value: 'enrichment', label: 'Enrichment' },
+  { value: 'assembly', label: 'กิจกรรมหน้าเสาธง' },
+  { value: 'club', label: 'ชุมนุม' },
+  { value: 'guidance', label: 'แนะแนว' },
+  { value: 'sport', label: 'กีฬา' },
+  { value: 'special-program', label: 'โครงการพิเศษ' },
+  { value: 'enrichment', label: 'กิจกรรมเสริม' },
 ];

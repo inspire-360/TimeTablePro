@@ -9,11 +9,11 @@ export const AUTH_ROLES = [
 export const DEFAULT_AUTH_ROLE = 'student';
 
 const roleLabels = {
-  super_admin: 'Super Admin',
-  school_admin: 'School Admin',
-  academic_admin: 'Academic Admin',
-  teacher: 'Teacher',
-  student: 'Student',
+  super_admin: 'ผู้ดูแลระบบสูงสุด',
+  school_admin: 'ผู้ดูแลโรงเรียน',
+  academic_admin: 'ฝ่ายวิชาการ',
+  teacher: 'ครูผู้สอน',
+  student: 'นักเรียน',
 };
 
 export function isValidAuthRole(role) {

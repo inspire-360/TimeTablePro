@@ -331,8 +331,8 @@ export function TimeStructurePage() {
 
   return (
     <AcademicPageShell
-      title="Time Structure"
-      description="Configure school-scoped weekly timing, variable weekday schedules, and dynamic time slots without hard-coded periods."
+      title="โครงสร้างเวลา"
+      description="กำหนดวันเรียน จำนวนคาบ และช่วงเวลาแต่ละวันแบบยืดหยุ่น โดยใช้ timeSlots แบบ dynamic ไม่ hard-code"
       error={error}
       summary={
         <div className="academic-summary__grid">

@@ -328,9 +328,9 @@ export function SubstitutePage() {
 
   return (
     <AcademicPageShell
-      eyebrow="Teacher Coverage"
-      title="Substitute Planner"
-      description="Assign substitute teachers to lessons affected by absences and review coverage statistics from the current timetable."
+      eyebrow="การสอนแทน"
+      title="จัดครูสอนแทน"
+      description="เลือกครูสอนแทนให้คาบที่ได้รับผลกระทบจากการลา และดูสรุปสถานะการจัดครูแทนจากตารางสอนปัจจุบัน"
       error={error}
       summary={
         <div className="academic-summary__grid">

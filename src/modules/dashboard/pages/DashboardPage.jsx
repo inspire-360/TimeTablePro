@@ -23,7 +23,7 @@ function formatMetricValue(value) {
 
 function MetricList({ items = [] }) {
   if (items.length === 0) {
-    return <p className="dashboard-empty-state">No metrics are available for this section yet.</p>;
+    return <p className="dashboard-empty-state">ยังไม่มีข้อมูลสรุปสำหรับส่วนนี้</p>;
   }
 
   return (
@@ -44,7 +44,7 @@ function MetricList({ items = [] }) {
 
           {item.href ? (
             <Link className="dashboard-inline-link" to={item.href}>
-              Open
+              เปิดดู
             </Link>
           ) : null}
         </div>
@@ -128,7 +128,7 @@ export function DashboardPage() {
       );
       setStatus('error');
       setError(
-        loadError instanceof Error ? loadError.message : 'Unable to load the dashboard.',
+        loadError instanceof Error ? loadError.message : 'ไม่สามารถโหลดแดชบอร์ดได้',
       );
     }
   }, [profile, schoolId, schoolName]);
@@ -144,7 +144,7 @@ export function DashboardPage() {
   }, [refreshDashboard]);
 
   if (status === 'loading') {
-    return <AppLoader label="Loading dashboard" />;
+    return <AppLoader label="กำลังโหลดแดชบอร์ด" />;
   }
 
   return (
@@ -195,23 +195,23 @@ export function DashboardPage() {
                 <StatusPill
                   tone={dashboard.conflicts.errorCount > 0 ? 'error' : 'success'}
                 >
-                  Errors: {dashboard.conflicts.errorCount}
+                  ข้อผิดพลาด: {dashboard.conflicts.errorCount}
                 </StatusPill>
                 <StatusPill
                   tone={dashboard.conflicts.warningCount > 0 ? 'warning' : 'success'}
                 >
-                  Warnings: {dashboard.conflicts.warningCount}
+                  คำเตือน: {dashboard.conflicts.warningCount}
                 </StatusPill>
-                <StatusPill tone="info">Info: {dashboard.conflicts.infoCount}</StatusPill>
+                <StatusPill tone="info">ข้อมูล: {dashboard.conflicts.infoCount}</StatusPill>
               </div>
 
-              <IssueGroup issues={dashboard.conflicts.error} title="Errors" tone="error" />
+              <IssueGroup issues={dashboard.conflicts.error} title="ข้อผิดพลาด" tone="error" />
               <IssueGroup
                 issues={dashboard.conflicts.warning}
-                title="Warnings"
+                title="คำเตือน"
                 tone="warning"
               />
-              <IssueGroup issues={dashboard.conflicts.info} title="Info" tone="info" />
+              <IssueGroup issues={dashboard.conflicts.info} title="ข้อมูล" tone="info" />
             </div>
           </DashboardSectionCard>
 

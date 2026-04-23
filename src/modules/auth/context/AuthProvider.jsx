@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
           user: null,
           profile: null,
           error:
-            'No Firestore profile was found for this account. Please create an account or contact an administrator.',
+            'ไม่พบโปรไฟล์ผู้ใช้ในระบบ กรุณาสร้างบัญชีหรือติดต่อผู้ดูแลระบบ',
         });
         return;
       }
@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
         status: 'error',
         user: null,
         profile: null,
-        error: getErrorMessage(error, 'Unable to restore your session.'),
+        error: getErrorMessage(error, 'ไม่สามารถกู้คืนสถานะการเข้าสู่ระบบได้'),
       });
     }
   }, []);

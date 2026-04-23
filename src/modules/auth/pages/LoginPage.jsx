@@ -14,7 +14,6 @@ const initialLoginForm = {
 
 const initialRegisterForm = {
   displayName: '',
-  schoolId: '',
   role: DEFAULT_AUTH_ROLE,
   email: '',
   password: '',
@@ -32,11 +31,11 @@ function buildRedirectPath(locationState) {
 
 function validateLoginForm(form) {
   if (!isValidEmail(form.email.trim())) {
-    return 'Enter a valid email address.';
+    return 'กรุณากรอกอีเมลให้ถูกต้อง';
   }
 
   if (!form.password) {
-    return 'Enter your password.';
+    return 'กรุณากรอกรหัสผ่าน';
   }
 
   return '';
@@ -44,23 +43,19 @@ function validateLoginForm(form) {
 
 function validateRegisterForm(form) {
   if (!form.displayName.trim()) {
-    return 'Enter the full name for this account.';
-  }
-
-  if (!form.schoolId.trim()) {
-    return 'Enter the school ID that this account belongs to.';
+    return 'กรุณากรอกชื่อ-นามสกุล';
   }
 
   if (!isValidEmail(form.email.trim())) {
-    return 'Enter a valid email address.';
+    return 'กรุณากรอกอีเมลให้ถูกต้อง';
   }
 
   if (form.password.length < 8) {
-    return 'Password must be at least 8 characters.';
+    return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
   }
 
   if (form.password !== form.confirmPassword) {
-    return 'Password confirmation does not match.';
+    return 'ยืนยันรหัสผ่านไม่ตรงกัน';
   }
 
   return '';
@@ -68,11 +63,7 @@ function validateRegisterForm(form) {
 
 function validateGoogleProfileSeed(form) {
   if (!form.displayName.trim()) {
-    return 'Enter the full name for this account.';
-  }
-
-  if (!form.schoolId.trim()) {
-    return 'Enter the school ID that this account belongs to.';
+    return 'กรุณากรอกชื่อ-นามสกุลก่อนสร้างบัญชีด้วย Google';
   }
 
   return '';
@@ -115,7 +106,7 @@ export function LoginPage() {
     } catch (authError) {
       setFeedback({
         tone: 'error',
-        message: authError instanceof Error ? authError.message : 'Unable to sign in.',
+        message: authError instanceof Error ? authError.message : 'ไม่สามารถเข้าสู่ระบบได้',
       });
     }
   }
@@ -134,7 +125,6 @@ export function LoginPage() {
       setFeedback({ tone: '', message: '' });
       await registerWithEmail({
         displayName: registerForm.displayName.trim(),
-        schoolId: registerForm.schoolId.trim(),
         role: registerForm.role,
         email: registerForm.email.trim().toLowerCase(),
         password: registerForm.password,
@@ -143,7 +133,7 @@ export function LoginPage() {
     } catch (authError) {
       setFeedback({
         tone: 'error',
-        message: authError instanceof Error ? authError.message : 'Unable to create the account.',
+        message: authError instanceof Error ? authError.message : 'ไม่สามารถสร้างบัญชีได้',
       });
     }
   }
@@ -156,7 +146,6 @@ export function LoginPage() {
         mode === 'register'
           ? {
               displayName: registerForm.displayName.trim(),
-              schoolId: registerForm.schoolId.trim(),
               role: registerForm.role,
             }
           : {};
@@ -176,7 +165,7 @@ export function LoginPage() {
       setFeedback({
         tone: 'error',
         message:
-          authError instanceof Error ? authError.message : 'Unable to continue with Google.',
+          authError instanceof Error ? authError.message : 'ไม่สามารถดำเนินการด้วย Google ได้',
       });
     }
   }
@@ -184,7 +173,7 @@ export function LoginPage() {
   return (
     <AuthShell>
       <div className="auth-card">
-        <div className="auth-card__tabs" role="tablist" aria-label="Authentication mode">
+        <div className="auth-card__tabs" role="tablist" aria-label="โหมดเข้าสู่ระบบ">
           <button
             type="button"
             role="tab"
@@ -195,7 +184,7 @@ export function LoginPage() {
               setFeedback({ tone: '', message: '' });
             }}
           >
-            Sign in
+            เข้าสู่ระบบ
           </button>
           <button
             type="button"
@@ -207,20 +196,20 @@ export function LoginPage() {
               setFeedback({ tone: '', message: '' });
             }}
           >
-            Create account
+            สร้างบัญชี
           </button>
         </div>
 
         <div className="auth-card__body">
           <div className="auth-card__heading">
             <p className="auth-card__eyebrow">
-              {mode === 'login' ? 'Existing account' : 'New auth account'}
+              {mode === 'login' ? 'บัญชีที่มีอยู่' : 'บัญชีใหม่'}
             </p>
-            <h2>{mode === 'login' ? 'Sign in to continue' : 'Create an auth profile'}</h2>
+            <h2>{mode === 'login' ? 'เข้าสู่ระบบเพื่อใช้งาน' : 'สร้างบัญชีผู้ใช้งาน'}</h2>
             <p>
               {mode === 'login'
-                ? 'Email/password and Google sign-in both restore the Firestore profile before redirecting to protected routes.'
-                : 'New accounts write a synced Firestore user profile with schoolId and role.'}
+                ? 'เข้าสู่ระบบด้วยอีเมลหรือ Google ระบบจะเชื่อมโปรไฟล์โรงเรียนให้อัตโนมัติ'
+                : 'บัญชีใหม่จะถูกผูกกับโรงเรียนหลักของระบบโดยอัตโนมัติ ไม่ต้องกรอก School ID'}
             </p>
           </div>
 
@@ -230,7 +219,7 @@ export function LoginPage() {
           {mode === 'login' ? (
             <form className="auth-form" onSubmit={handleEmailLogin}>
               <InputField
-                label="Email"
+                label="อีเมล"
                 type="email"
                 autoComplete="email"
                 value={loginForm.email}
@@ -240,24 +229,24 @@ export function LoginPage() {
                 placeholder="name@school.ac.th"
               />
               <InputField
-                label="Password"
+                label="รหัสผ่าน"
                 type="password"
                 autoComplete="current-password"
                 value={loginForm.password}
                 onChange={(event) =>
                   setLoginForm((current) => ({ ...current, password: event.target.value }))
                 }
-                placeholder="At least 8 characters"
+                placeholder="กรอกรหัสผ่าน"
               />
 
               <button type="submit" className="primary-button" disabled={isLoading}>
-                {isLoading ? 'Signing in...' : 'Sign in with email'}
+                {isLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบด้วยอีเมล'}
               </button>
             </form>
           ) : (
             <form className="auth-form" onSubmit={handleEmailRegister}>
               <InputField
-                label="Full name"
+                label="ชื่อ-นามสกุล"
                 value={registerForm.displayName}
                 onChange={(event) =>
                   setRegisterForm((current) => ({
@@ -265,21 +254,10 @@ export function LoginPage() {
                     displayName: event.target.value,
                   }))
                 }
-                placeholder="Teacher or student name"
-              />
-              <InputField
-                label="School ID"
-                value={registerForm.schoolId}
-                onChange={(event) =>
-                  setRegisterForm((current) => ({
-                    ...current,
-                    schoolId: event.target.value,
-                  }))
-                }
-                placeholder="example-school"
+                placeholder="ชื่อครู นักเรียน หรือผู้ดูแลระบบ"
               />
               <SelectField
-                label="Role"
+                label="บทบาท"
                 value={registerForm.role}
                 onChange={(event) =>
                   setRegisterForm((current) => ({
@@ -295,7 +273,7 @@ export function LoginPage() {
                 ))}
               </SelectField>
               <InputField
-                label="Email"
+                label="อีเมล"
                 type="email"
                 autoComplete="email"
                 value={registerForm.email}
@@ -305,17 +283,17 @@ export function LoginPage() {
                 placeholder="name@school.ac.th"
               />
               <InputField
-                label="Password"
+                label="รหัสผ่าน"
                 type="password"
                 autoComplete="new-password"
                 value={registerForm.password}
                 onChange={(event) =>
                   setRegisterForm((current) => ({ ...current, password: event.target.value }))
                 }
-                placeholder="At least 8 characters"
+                placeholder="อย่างน้อย 8 ตัวอักษร"
               />
               <InputField
-                label="Confirm password"
+                label="ยืนยันรหัสผ่าน"
                 type="password"
                 autoComplete="new-password"
                 value={registerForm.confirmPassword}
@@ -325,17 +303,17 @@ export function LoginPage() {
                     confirmPassword: event.target.value,
                   }))
                 }
-                placeholder="Repeat the password"
+                placeholder="กรอกรหัสผ่านอีกครั้ง"
               />
 
               <button type="submit" className="primary-button" disabled={isLoading}>
-                {isLoading ? 'Creating account...' : 'Create account with email'}
+                {isLoading ? 'กำลังสร้างบัญชี...' : 'สร้างบัญชีด้วยอีเมล'}
               </button>
             </form>
           )}
 
           <button type="button" className="secondary-button" onClick={handleGoogleClick}>
-            {mode === 'login' ? 'Continue with Google' : 'Create account with Google'}
+            {mode === 'login' ? 'เข้าสู่ระบบด้วย Google' : 'สร้างบัญชีด้วย Google'}
           </button>
         </div>
       </div>

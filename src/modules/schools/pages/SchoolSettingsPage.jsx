@@ -3,7 +3,10 @@ import { FormMessage } from '../../../shared/ui/FormMessage';
 import { InputField } from '../../../shared/ui/InputField';
 import { SelectField } from '../../../shared/ui/SelectField';
 import { StatusPill } from '../../../shared/ui/StatusPill';
+import { AcademicPageShell } from '../../academic/components/AcademicPageShell';
 import { useAuth } from '../../auth/context/useAuth';
+import { ThemeColorPanel } from '../../theme/components/ThemeColorPanel';
+import { normalizeSchoolTheme } from '../../theme/constants/themePalette';
 import { useCurrentSchool } from '../context/useCurrentSchool';
 
 function createEmptySignature(schoolId) {
@@ -23,6 +26,7 @@ function buildFormState(currentSchool, currentSchoolId, currentSchoolSettings) {
     schoolName: currentSchool.name || '',
     logoUrl: currentSchool.logoUrl || '',
     affiliation: currentSchool.affiliation || '',
+    theme: normalizeSchoolTheme(currentSchoolSettings.theme),
     signatures:
       currentSchoolSettings.signatures.length > 0
         ? currentSchoolSettings.signatures
@@ -32,11 +36,11 @@ function buildFormState(currentSchool, currentSchoolId, currentSchoolSettings) {
 
 function validateForm(form) {
   if (!form.schoolId.trim()) {
-    return 'School ID is required.';
+    return 'ไม่พบรหัสโรงเรียนของระบบ';
   }
 
   if (!form.schoolName.trim()) {
-    return 'School name is required.';
+    return 'กรุณากรอกชื่อโรงเรียน';
   }
 
   return '';
@@ -71,6 +75,7 @@ function SchoolSettingsForm({
   saveCurrentSchoolSettings,
   schools,
   setCurrentSchoolId,
+  canManageTheme,
 }) {
   const [form, setForm] = useState(() =>
     buildFormState(currentSchool, currentSchoolId, currentSchoolSettings),
@@ -120,6 +125,16 @@ function SchoolSettingsForm({
     }));
   }
 
+  function handleThemeChange(field, value) {
+    setForm((current) => ({
+      ...current,
+      theme: normalizeSchoolTheme({
+        ...current.theme,
+        [field]: value,
+      }),
+    }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -138,6 +153,7 @@ function SchoolSettingsForm({
         schoolName: form.schoolName.trim(),
         logoUrl: form.logoUrl.trim(),
         affiliation: form.affiliation.trim(),
+        theme: form.theme,
         signatures: form.signatures.map((signature, index) => ({
           ...signature,
           schoolId: form.schoolId.trim(),
@@ -147,13 +163,13 @@ function SchoolSettingsForm({
 
       setFeedback({
         tone: 'success',
-        message: 'School settings saved successfully.',
+        message: 'บันทึกข้อมูลโรงเรียนเรียบร้อยแล้ว',
       });
     } catch (saveError) {
       setFeedback({
         tone: 'error',
         message:
-          saveError instanceof Error ? saveError.message : 'Unable to save school settings.',
+          saveError instanceof Error ? saveError.message : 'ไม่สามารถบันทึกข้อมูลโรงเรียนได้',
       });
     }
   }
@@ -165,7 +181,7 @@ function SchoolSettingsForm({
       <form className="settings-form" onSubmit={handleSubmit}>
         <div className="settings-grid">
           <SelectField
-            label="Current school"
+            label="โรงเรียนปัจจุบัน"
             value={currentSchoolId || form.schoolId}
             onChange={(event) => {
               void setCurrentSchoolId(event.target.value);
@@ -173,7 +189,7 @@ function SchoolSettingsForm({
           >
             {schoolOptions.length === 0 ? (
               <option value={form.schoolId}>
-                {form.schoolName || form.schoolId || 'Current school'}
+                {form.schoolName || form.schoolId || 'โรงเรียนปัจจุบัน'}
               </option>
             ) : (
               schoolOptions.map((school) => (
@@ -185,23 +201,14 @@ function SchoolSettingsForm({
           </SelectField>
 
           <InputField
-            label="School ID"
+            label="รหัสโรงเรียนในระบบ"
             value={form.schoolId}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                schoolId: event.target.value.trim().toLowerCase(),
-                signatures: current.signatures.map((signature) => ({
-                  ...signature,
-                  schoolId: event.target.value.trim().toLowerCase(),
-                })),
-              }))
-            }
-            placeholder="example-school"
+            readOnly
+            title="ระบบกำหนดรหัสโรงเรียนให้อัตโนมัติสำหรับการใช้งานภายในโรงเรียน"
           />
 
           <InputField
-            label="School name"
+            label="ชื่อโรงเรียน"
             value={form.schoolName}
             onChange={(event) =>
               setForm((current) => ({
@@ -209,11 +216,11 @@ function SchoolSettingsForm({
                 schoolName: event.target.value,
               }))
             }
-            placeholder="Bangkok Demonstration School"
+            placeholder="โรงเรียนตัวอย่าง"
           />
 
           <InputField
-            label="Affiliation"
+            label="สังกัด"
             value={form.affiliation}
             onChange={(event) =>
               setForm((current) => ({
@@ -221,12 +228,12 @@ function SchoolSettingsForm({
                 affiliation: event.target.value,
               }))
             }
-            placeholder="Office of the Basic Education Commission"
+            placeholder="สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน"
           />
 
           <div className="settings-grid__full">
             <InputField
-              label="Logo URL"
+              label="URL โลโก้โรงเรียน"
               value={form.logoUrl}
               onChange={(event) =>
                 setForm((current) => ({
@@ -239,14 +246,22 @@ function SchoolSettingsForm({
           </div>
         </div>
 
+        {canManageTheme ? (
+          <ThemeColorPanel disabled={isSaving} onChange={handleThemeChange} theme={form.theme} />
+        ) : (
+          <FormMessage tone="info">
+            เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถปรับธีมสีของหน้าเว็บได้
+          </FormMessage>
+        )}
+
         <section className="signature-section">
           <div className="signature-section__header">
             <div>
               <p className="auth-card__eyebrow">schoolSettings collection</p>
-              <h2 className="signature-section__title">Signatures</h2>
+              <h2 className="signature-section__title">ลายเซ็นในเอกสาร</h2>
             </div>
             <button type="button" className="secondary-button" onClick={handleAddSignature}>
-              Add signature
+              เพิ่มลายเซ็น
             </button>
           </div>
 
@@ -254,36 +269,36 @@ function SchoolSettingsForm({
             {form.signatures.map((signature) => (
               <article key={signature.id} className="signature-card">
                 <div className="signature-card__header">
-                  <h3>Signature record</h3>
+                  <h3>ข้อมูลผู้ลงนาม</h3>
                   <button
                     type="button"
                     className="secondary-button"
                     onClick={() => handleRemoveSignature(signature.id)}
                   >
-                    Remove
+                    ลบ
                   </button>
                 </div>
 
                 <div className="settings-grid">
                   <InputField
-                    label="Signer name"
+                    label="ชื่อผู้ลงนาม"
                     value={signature.name}
                     onChange={(event) =>
                       handleSignatureChange(signature.id, 'name', event.target.value)
                     }
-                    placeholder="School director"
+                    placeholder="ผู้อำนวยการโรงเรียน"
                   />
                   <InputField
-                    label="Signer title"
+                    label="ตำแหน่งผู้ลงนาม"
                     value={signature.title}
                     onChange={(event) =>
                       handleSignatureChange(signature.id, 'title', event.target.value)
                     }
-                    placeholder="Director"
+                    placeholder="ผู้อำนวยการ"
                   />
                   <div className="settings-grid__full">
                     <InputField
-                      label="Signature image URL"
+                      label="URL ภาพลายเซ็น"
                       value={signature.imageUrl}
                       onChange={(event) =>
                         handleSignatureChange(signature.id, 'imageUrl', event.target.value)
@@ -298,7 +313,7 @@ function SchoolSettingsForm({
         </section>
 
         <button type="submit" className="primary-button" disabled={isSaving}>
-          {isSaving ? 'Saving settings...' : 'Save school settings'}
+          {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูลโรงเรียน'}
         </button>
       </form>
     </>
@@ -306,7 +321,7 @@ function SchoolSettingsForm({
 }
 
 export function SchoolSettingsPage() {
-  const { logout } = useAuth();
+  const { logout, profile } = useAuth();
   const {
     currentSchool,
     currentSchoolId,
@@ -323,57 +338,53 @@ export function SchoolSettingsPage() {
     currentSchool,
     currentSchoolSettings,
   );
+  const canManageTheme = ['super_admin', 'school_admin', 'academic_admin'].includes(
+    profile?.role,
+  );
 
   if (status === 'loading') {
     return (
       <div className="loader-shell">
         <div className="loader-panel">
           <span className="loader-spinner" aria-hidden="true" />
-          <p className="loader-panel__eyebrow">Current School</p>
-          <h2>Loading school settings</h2>
+          <p className="loader-panel__eyebrow">โรงเรียนปัจจุบัน</p>
+          <h2>กำลังโหลดข้อมูลโรงเรียน</h2>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="settings-shell">
-      <section className="settings-card">
-        <header className="settings-card__header">
-          <div className="settings-card__heading">
-            <p className="auth-card__eyebrow">Multi-school system</p>
-            <h1 className="settings-card__title">School settings</h1>
-            <p className="settings-card__copy">
-              Manage school master data in <code>schools</code> and signatures in
-              <code>schoolSettings</code>. Every saved document includes <code>schoolId</code>.
-            </p>
-          </div>
-
-          <div className="settings-card__actions">
-            <StatusPill tone="info">
-              currentSchoolId: {currentSchoolId || currentSchool.schoolId || 'not set'}
-            </StatusPill>
-            <button type="button" className="secondary-button" onClick={logout}>
-              Sign out
-            </button>
-          </div>
-        </header>
-
-        <div className="settings-card__body">
-          {error ? <FormMessage tone="error">{error}</FormMessage> : null}
-
-          <SchoolSettingsForm
-            key={formInstanceKey}
-            currentSchool={currentSchool}
-            currentSchoolId={currentSchoolId}
-            currentSchoolSettings={currentSchoolSettings}
-            isSaving={isSaving}
-            saveCurrentSchoolSettings={saveCurrentSchoolSettings}
-            schools={schools}
-            setCurrentSchoolId={setCurrentSchoolId}
-          />
+    <AcademicPageShell
+      eyebrow="ตั้งค่าโรงเรียน"
+      title="ข้อมูลโรงเรียนและธีม"
+      description="จัดการชื่อโรงเรียน โลโก้ สังกัด ลายเซ็นเอกสาร และธีมสีของหน้าเว็บ โดยข้อมูลทั้งหมดผูกกับโรงเรียนปัจจุบัน"
+      error={error}
+      summary={
+        <div className="academic-summary__grid">
+          <StatusPill tone="info">
+            โรงเรียน: {currentSchool.name || currentSchool.schoolId || 'ยังไม่ตั้งค่า'}
+          </StatusPill>
+          <StatusPill tone={canManageTheme ? 'success' : 'neutral'}>
+            สิทธิ์ธีม: {canManageTheme ? 'ปรับได้' : 'อ่านอย่างเดียว'}
+          </StatusPill>
+          <button type="button" className="secondary-button" onClick={logout}>
+            ออกจากระบบ
+          </button>
         </div>
-      </section>
-    </div>
+      }
+    >
+      <SchoolSettingsForm
+        key={formInstanceKey}
+        canManageTheme={canManageTheme}
+        currentSchool={currentSchool}
+        currentSchoolId={currentSchoolId}
+        currentSchoolSettings={currentSchoolSettings}
+        isSaving={isSaving}
+        saveCurrentSchoolSettings={saveCurrentSchoolSettings}
+        schools={schools}
+        setCurrentSchoolId={setCurrentSchoolId}
+      />
+    </AcademicPageShell>
   );
 }

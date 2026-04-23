@@ -197,8 +197,8 @@ export function AcademicYearPage() {
 
   return (
     <AcademicPageShell
-      title="Academic Years"
-      description="Manage school-scoped academic year records in the academicYears collection. The active year is used by term defaults and active-period logic."
+      title="ปีการศึกษา"
+      description="จัดการปีการศึกษาของโรงเรียน ปีที่กำหนดเป็นปีปัจจุบันจะถูกใช้เป็นค่าเริ่มต้นของภาคเรียนและช่วงเวลาที่ใช้งาน"
       error={error}
       summary={
         <div className="academic-summary__grid">

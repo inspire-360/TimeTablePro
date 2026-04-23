@@ -1,0 +1,320 @@
+--- PAGE 1 ---
+Updated  Step-by-step  Implementation  
+Plan
+ 
+ระบบ  timetable-pro เวอร์ชัน ใหม่  
+ภาพ รวม โม ดู ลหลัก  
+ระบบ เวอร์ชัน ใหม่ นี้ แบ่ง เป็น  14  โม ดู ลหลัก  
+1.  Project  Foundation  2.  Authentication  &  Role  Management  3.  School  /  Tenant  Configuration  4.  Academic  Year  /  Term  Management  5.  Time  Structure  Management  6.  PLC  Policy  Management  7.  Master  Data  8.  Course  Registration  &  Assignment  9.  Timetable  Engine  10.  Conflict  Prevention  11.  Substitute  Teaching  12.  Dashboard  &  Analytics  13.  Export  /  PDF  /  CSV  /  Drive  14.  Smart  Suggestions  &  Auto  Scheduling  
+ 
+PHASE  0  —  Project  Foundation  
+0.1  เป้าหมาย  
+ตั้ง โครงสร้าง โป ร เจ กต์ให้ พร้อม สําหรับ การ ขยาย หลาย โรงเรียน  หลาย ปีการศึกษา  และ หลาย ภาคเรียน  
+0.2  โครงสร้าง ไฟล์แนะนํา  src/    app/      router/        index.jsx      providers/        AppProviders.jsx
+
+--- PAGE 2 ---
+lib/      firebase/        config.js        auth.js        firestore.js      utils/        dates.js        time.js        validation.js        conflict.js    components/      ui/      layout/      forms/      tables/      dialogs/    features/      auth/      schools/      academicYears/      terms/      timeStructure/      plcPolicy/      teachers/      students/      subjects/      learningAreas/      classes/      classrooms/      activities/      offerings/      assignments/      timetables/      substitutions/      exports/      dashboard/    pages/      auth/      dashboard/      setup/      master/      timetable/      reports/      settings/   
+0.3  Dependency  หลัก
+
+--- PAGE 3 ---
+●  firebase  ●  react-router-dom  ●  dayjs  ●  pdf  generation  library  ●  csv  export  utility  ●  form  validation  library  ●  state  management  ตาม แนว ทีม  
+ 
+PHASE  1  —  Authentication  &  Role  
+Management
+ 
+1.1  เป้าหมาย  
+รอง รับ  login  แบบ  Email/Password  และ  Google  พร้อม  role-based  access  
+1.2  Roles  
+●  super_admin  ●  school_admin  ●  academic_admin  ●  teacher  ●  student  
+1.3  งาน ที่ ต้อง ทํา  
+●  Login  page  ●  Google  Sign-In  ●  Email  login/register/reset  password  ●  Protected  route  ●  User  profile  sync  ไป  Firestore  ●  Role-based  redirect  
+1.4  Collections  users/{uid}    schoolId    role    displayName    email    photoURL    active
+
+--- PAGE 4 ---
+lastLoginAt    
+PHASE  2  —  School  /  Tenant  
+Configuration
+ 
+2.1  เป้าหมาย  
+ทํา ระบบ ให้ เป็น  product  ที่ ขาย ได้ หลาย โรงเรียน  โดย เปลี่ยน ค่า  config  ไม่ กี่ จุด  
+2.2  Collections  schools/{schoolId}    schoolName    schoolCode    logoUrl    affiliation    address    phone    timezone    locale    curriculumVersion    active   schoolSettings/{schoolId}    activeAcademicYearId    activeTermId    levelsEnabled[]    defaultSectionMode    exportTheme    signatureDirector    signatureAcademicHead    plcEnabled   
+2.3  หน้า จอ  
+●  School  Profile  Settings  ●  Branding  Settings  ●  Signature  Settings  ●  Default  Academic  Settings
+
+--- PAGE 5 ---
+PHASE  3  —  Academic  Year  /  Term  
+Management
+ 
+3.1  เป้าหมาย  
+รอง รับ การ เปลี่ยน ปีการศึกษา และ ภาคเรียน แบบ เป็น ระบบ  
+3.2  Collections  academicYears/{yearId}    schoolId    label    startDate    endDate    isActive   terms/{termId}    schoolId    academicYearId    termNumber    label    startDate    endDate    isActive   
+3.3  หน้า จอ  
+●  Academic  Year  Management  ●  Term  Management  ●  Active  Year/Term  Selector  
+3.4  Logic  
+●  ระบบ เลือก  active  year  /  term  อัตโนมัติ จาก วัน ที่  ●  ทุก ฟอร์ม  default  ไป ยัง  active  year  /  term  ●  มี คําสั่ง  copy  setup  from  previous  term  
+ 
+PHASE  4  —  Time  Structure  Management
+
+--- PAGE 6 ---
+อัน นี้ คือ โม ดู ลใหม่ที่เพิ่ม เข้า มา แบบ เต็ม รูป แบบ  
+4.1  เป้าหมาย  
+ให้ โรงเรียน กําหนด ได้ เอง ว่า เรียน กี่ วัน ต่อ สัปดาห์  แต่ละ วัน มี กี่ คาบ  แต่ละ คาบ เวลา เท่าไร  และ บาง วัน มี คาบ
+ไม่
+เท่า
+กัน
+ได้
+ 
+4.2  หลักการ  
+ห้าม  hard-code  ว่า  “ จันทร์ – ศุกร์  8  คาบ ”  
+ระบบ
+ต้อง
+ 
+configurable
+ 
+ทั้งหมด
+ 
+4.3  Collections  timeStructures/{timeStructureId}    schoolId    academicYearId    termId    name    daysPerWeek    activeWeekdays[]            //  [1,2,3,4,5]    allowDifferentDailySchedule    active   dailySchedules/{dailyScheduleId}    schoolId    academicYearId    termId    dayOfWeek    totalTeachingPeriods    hasLunchBreak    active   timeSlots/{slotId}    schoolId    academicYearId    termId    dayOfWeek    periodNumber    startTime    endTime    slotType                    //  teaching  |  break  |  lunch  |  plc  |  activity    label    isLastTeachingPeriod    isSystemGenerated    active
+
+--- PAGE 7 ---
+4.4  หน้า จอ  
+A.  Time  Structure  Settings  
+มี ฟอร์ม :  
+●  จํานวน วัน เรียน ต่อ สัปดาห์  ●  วัน เรียน ที่ เปิด ใช้ งาน  ●  ใช้ จํานวน คาบ เท่า กัน ทุก วัน หรือ ไม่  ●  ใช้ โครงสร้าง เวลา แยก ตาม ภาคเรียน หรือ ไม่  
+B.  Daily  Schedule  Editor  
+กําหนด ราย วัน :  
+●  วัน จันทร์ มี กี่ คาบ  ●  วัน ศุกร์ มี กี่ คาบ  ●  มี พัก กลางวัน หรือ ไม่  ●  คาบ เริ่ม - จบ เวลา เท่าไร  
+C.  Time  Slot  Editor  
+จัดการ แต่ละ คาบ :  
+●  คาบ ที่  ●  เวลา เริ่ม  ●  เวลา จบ  ●  ประเภท คาบ  ●  label  
+4.5  Business  Rules  
+●  คาบ ใน วัน เดียวกัน ห้าม เวลา  overlap  ●  startTime  <  endTime  ●  periodNumber  ต้อง  unique  ภายใน วัน เดียวกัน  ●  โรงเรียน เลือก ได้ ว่า จะ ใช้ ตาราง เวลา เท่า กัน ทุก วัน หรือ ไม่  ●  break/lunch  slot  ใช้ ใน  timetable  grid  ได้  แต่ ไม่ เป็น คาบ สอน  ●  time  structure  เปลี่ยน แล้ว ต้อง  revalidate  timetable  ทั้ง ระบบ  
+4.6  ลําดับ พัฒนา  
+1.  สร้าง  collection  และ  CRUD  2.  ทํา หน้า  Time  Structure  Settings  3.  ทํา  Daily  Schedule  Editor
+
+--- PAGE 8 ---
+4.  ทํา  Time  Slot  Editor  5.  เชื่อม  active  structure  กับ  timetable  engine  
+ 
+PHASE  5  —  PLC  Policy  Management  
+นี่ คือ โม ดู ลใหม่ที่เพิ่ม เต็ม รูป แบบ ตาม  requirement  ของ คุณ  
+5.1  เป้าหมาย  
+รอง รับ การ กําหนด  PLC  ระดับ โรงเรียน  และ ให้ ระบบ วาง  PLC  หลังคา บ สุดท้าย ของ วัน ที่ โรงเรียน กําหนด
+ได้
+อัตโนมัติ
+ 
+5.2  หลักการ สําคัญ  
+●  PLC  เป็น ภาระ งาน ครู  ●  PLC  ไม่ ใช่ คาบ เรียน ของ นักเรียน  ●  PLC  ต้อง  block  เวลา ครู  ●  ส่วน มาก  PLC  อยู่ หลังคา บ สุดท้าย ของ วัน  ●  โรงเรียน เป็น คน กําหนด วัน  PLC  
+5.3  Collections  plcPolicies/{policyId}    schoolId    academicYearId    termId    enabled    placementMode                  //  after_last_period    requiredHoursPerWeekDefault    allowedWeekdays[]              //  [3]  =  พุธ    durationPerSessionMinutes    maxSessionsPerWeek    useSchoolWidePolicy    autoCreatePlcSlots    allowTeacherOverride    active   teacherWorkloadPolicies/{policyId}    schoolId    teacherId    academicYearId    termId    weeklyMaxTeachingHours
+
+--- PAGE 9 ---
+requiredPlcHoursPerWeek    plcOverrideEnabled    preferredPlcDays[]    exemptFromPlc    active   teacherPlcAssignments/{assignmentId}    schoolId    teacherId    academicYearId    termId    dayOfWeek    slotId    source                         //  auto  |  manual    status                         //  planned  |  confirmed    note   
+5.4  PLC  slot  generation  
+เมื่อ โรงเรียน ตั้ง ค่า  PLC  แล้ว  ระบบ ต้อง สามารถ สร้าง  timeSlots ประเภท  plc ต่อ ท้าย วัน นั้น อัตโนมัติ  
+ตัวอย่าง :  
+●  วัน พุธ มี คาบ สอน สุดท้าย จบ  15:30  ●  policy  ระบุ  PLC  60  นาที  ●  ระบบ สร้าง  slot  ใหม่  15:30–16:30  ●  slotType  =  plc  ●  isSystemGenerated  =  true  
+5.5  หน้า จอ  
+A.  PLC  Policy  Settings  
+ฟิลด์ :  
+●  เปิด ใช้  PLC  หรือ ไม่  ●  จํานวน ชั่วโมง  PLC  ต่อ สัปดาห์  default  ●  วัน ที่ จัด  PLC  ●  จัด  PLC  หลังคา บ สุดท้าย  ●  ระยะ เวลา แต่ละ ครั้ง  ●  auto  create  PLC  slots  ●  อนุญาต  override  ราย ครู หรือ ไม่  
+B.  Teacher  Workload  Settings
+
+--- PAGE 10 ---
+ฟิลด์ :  
+●  ชั่วโมง สอน สูง สุด ต่อ สัปดาห์  ●  ชั่วโมง  PLC  ต่อ สัปดาห์  ●  ใช้ ค่า  default  โรงเรียน หรือ  override  ●  ยกเว้น  PLC  หรือ ไม่  ●  วัน  PLC  ที่  prefer  
+C.  PLC  Assignment  View  
+●  ดู  PLC  ของ ครู แต่ละ คน  ●  ดู  PLC  ราย วัน  ●  ย้าย / ยืนยัน คาบ  PLC  ●  แสดง ครู ที่ ยัง ได้  PLC  ไม่ ครบ  
+5.6  Business  Rules  
+●  PLC  ต้อง ไม่ ชน คาบ สอน ของ ครู  ●  PLC  ต้อง ไม่ ชน  substitution  ●  PLC  ไม่ ถูก แสดง ใน  student  timetable  ●  PLC  แสดง ใน  teacher  timetable  และ  workload  dashboard  ●  ถ้า  school-wide  PLC  ให้  block  ครู ทุก คน ตาม  policy  ●  ถ้า ครู  exemptFromPlc  =  true  ไม่ ต้อง  auto  assign  ●  requiredPlcHoursPerWeek  อาจ  override  ราย ครู ได้  ●  ถ้า  PLC  ถูก สร้าง อัตโนมัติ แล้ว  ห้าม ลบ โดย ไม่ มี สิทธิ์  admin  
+5.7  ลําดับ พัฒนา  
+1.  สร้าง  plcPolicies  2.  สร้าง  teacherWorkloadPolicies  3.  ทํา  PLC  Policy  Settings  page  4.  ทํา  auto-create  PLC  slots  5.  ทํา  PLC  assignment  engine  6.  เชื่อม เข้า กับ  conflict  engine  และ  dashboard  
+ 
+PHASE  6  —  Master  Data  
+6.1  Collections  learningAreas  subjects  teachers  students
+
+--- PAGE 11 ---
+classes  classrooms  activities  studentGroups   
+6.2  Subjects  subjects/{subjectId}    schoolId    subjectCode    subjectName    subjectType                 //  core  |  elective    learningAreaId    curriculumVersion    defaultPeriodsPerWeek    credit    colorToken    active   
+6.3  Teachers  teachers/{teacherId}    schoolId    userId    fullName    shortName    employeeCode    weeklyMaxHours    homeroomClassId    active   
+6.4  Classes  classes/{classId}    schoolId    level    grade    room    className    homeroomTeacherId    assistantHomeroomTeacherId    active
+
+--- PAGE 12 ---
+6.5  Activities  
+รอง รับ  แนะแนว  ลูกเสือ  ยุ ว กาชาด  เนตร นารี  ชุมนุม  ซ่อม เสริม  คุณธรรม  
+ 
+PHASE  7  —  Course  Registration  &  
+Assignment
+ 
+7.1  เป้าหมาย  
+รอง รับ การ ลง ทะเบียน รายวิชา แบบ พื้นฐาน / เพิ่มเติม  และ ผูก วิชา - ชั้น - ห้อง - ครู - กลุ่ม ย่อย  
+7.2  Collections  classOfferings  sections  courseAssignments   
+7.3  Workflow  
+1.  เปิด วิชา ให้ ห้อง เรียน  2.  กําหนด ว่า เรียน ทั้ง ห้อง หรือ  subgroup  3.  กําหนด ครู ผู้ สอน  4.  กําหนด จํานวน คาบ ต่อ สัปดาห์  5.  ผูก  section  กับ นักเรียน หรือ กลุ่ม  
+7.4  Business  Rules  
+●  default  sectionMode  =  full_class  ●  1  วิชา เปิด หลาย ห้อง ได้  ●  1  วิชา เดียวกัน มี หลาย ครู ได้  ถ้า คนละ ห้อง หรือ คนละ  section  ●  รายวิชา พื้นฐาน / เพิ่มเติม ต้อง  filter  ได้  
+ 
+PHASE  8  —  Timetable  Engine  
+8.1  Collections
+
+--- PAGE 13 ---
+timetables  timetableEntries   
+8.2  timetableEntries  schema  timetableEntries/{entryId}    schoolId    academicYearId    termId    timetableId    entryType                     //  subject  |  activity  |  plc  |  substitution    classId    teacherId    subjectId    activityId    classroomId    sectionId    dayOfWeek    slotId    slotType    source                        //  manual  |  auto    isLocked    createdBy    updatedBy   
+8.3  Timetable  Editor  UI  
+3  panel  
+●  ซ้าย :  filters  /  selector  ●  กลาง :  timetable  grid  ●  ขวา :  inspector  /  conflicts  /  suggestions  
+8.4  สําคัญ  
+timetable  grid  ต้อง อ่าน จาก  timeSlots จริง  ไม่ ใช่  hard-code  แถว  1–8  
+ 
+PHASE  9  —  Conflict  Prevention  Engine  
+9.1  ต้อง ตรวจ อย่าง น้อย
+
+--- PAGE 14 ---
+●  teacher  conflict  ●  classroom  conflict  ●  class  conflict  ●  special  room  conflict  ●  max  teaching  hours  ●  PLC  conflict  ●  school-wide  activity  conflict  ●  substitute  conflict  
+9.2  Logic  ใหม่ ที่ ต้อง เพิ่ม เรื่อง  PLC  
+●  slotType  =  plc  นับ ว่า  occupied  สําหรับ ครู  ●  slotType  =  plc  ไม่ นับ เป็น  class  learning  slot  ●  PLC  ห้าม ถูก แทน ที่ ด้วย วิชา ปกติ  เว้นแต่ มี สิทธิ์  override  
+9.3  สถานะ  
+●  error  ●  warning  ●  info  
+ 
+PHASE  10  —  Substitute  Teaching  
+10.1  Collections  teacherAbsences  substitutions   
+10.2  Logic  ใหม่  
+ถ้า มีค รู ลา  ระบบ ต้องหา  substitute  ที่ :  
+●  ว่าง ใน  slot  นั้น  ●  ไม่ ชน  PLC  ●  ไม่ เกิน ภาระ สอน  ●  อยู่ ใน กลุ่ม สาระ ที่ เกี่ยวข้อง ได้ ยิ่ง ดี  
+10.3  Dashboard  
+●  วัน นี้ มี สอน แทน กี่ คาบ  ●  ครู คน ไหน สอน แทน มาก สุด
+
+--- PAGE 15 ---
+●  คาบ ไหน ยัง ไม่ มีค น แทน  
+ 
+PHASE  11  —  Dashboard  &  Analytics  
+11.1  Admin  Dashboard  
+●  จํานวน ครู  ●  จํานวน ห้อง  ●  จํานวน รายวิชา  ●  assignment  coverage  ●  conflict  summary  ●  PLC  summary  ●  substitute  summary  ●  export  center  shortcut  
+11.2  Teacher  Dashboard  
+●  ตารางสอน วัน นี้  ●  ตาราง สัปดาห์  ●  PLC  ของ สัปดาห์ นี้  ●  งาน สอน แทน  ●  ภาระ สอน รวม  /  PLC  รวม  
+11.3  Academic  Dashboard  
+●  ห้อง ที่ ยัง ไม่ มีค รูป ระ จํา ชั้น  ●  วิชา ที่ ยัง  assign  ไม่ ครบ  ●  PLC  ไม่ ครบ ตาม นโยบาย  ●  timetable  conflicts  
+ 
+PHASE  12  —  Export  /  PDF  /  CSV  /  Drive  
+12.1  เอกสาร  
+●  ตาราง เรียน ห้อง  ●  ตารางสอน ครู  ●  ข้อมูล รายวิชา ที่ สอน  ●  CSV  export  หลาย ชุด
+
+--- PAGE 16 ---
+12.2  Filters  
+●  ปีการศึกษา  ●  ภาคเรียน  ●  ระดับ ชั้น  ●  ห้อง  ●  ครู  ●  กลุ่ม สาระ  ●  ประเภท วิชา  ●  published/draft  
+12.3  สิ่ง ที่ ต้อง รอง รับ เพิ่ม  
+●  ถ้า มี  PLC  ใน  teacher  timetable  ให้ เลือก ได้ ว่า จะ พิมพ์ ออก หรือ ไม่  ●  เอกสาร ครู ควร เลือก แสดง  workload  summary  ได้  
+12.4  สถาปัตยกรรม  
+●  export  service  ●  export  templates  ●  export  history  ●  phase  2  เพิ่ม  Google  Drive  integration  
+ 
+PHASE  13  —  Real-time  Collaboration  
+13.1  เป้าหมาย  
+ให้ หลาย คน ทํา งาน พร้อม กัน ได้  
+13.2  Collections  editingSessions  auditLogs   
+13.3  สิ่ง ที่ ต้อง ทํา  
+●  onSnapshot  realtime  updates  ●  optimistic  updates  ●  soft  lock  /  editing  indicator  ●  change  audit  trail
+
+--- PAGE 17 ---
+PHASE  14  —  Smart  Suggestions  &  Auto  
+Scheduling
+ 
+14.1  Free-slot  suggestion  
+ต้อง คํานวณ โดย ใช้ ข้อ จํากัด ใหม่ ทั้งหมด  
+●  teacher  availability  ●  class  availability  ●  room  availability  ●  PLC  slots  ●  school-wide  activities  ●  required  periods/week  
+14.2  Auto  placement  
+3  ระดับ  
+●  suggest  slots  ●  auto  place  one  subject  ●  auto  generate  timetable  
+14.3  Priority  rule  
+●  วิชา หลัก ก่อน  ●  ห้อง พิเศษ ก่อน  ●  PLC  block  ก่อน  ●  school-wide  activities  block  ก่อน  ●  ครู ภาระ สูง ก่อน  
+ 
+หน้า จอ ที่ ต้อง เพิ่ม จาก แผน เดิม  
+จาก การ เพิ่ม โมดูล  Time  Structure  +  PLC  Policy  ทีม พัฒนา ต้อง เพิ่ม หน้า ใหม่ ดังนี้  
+Setup  
+●  School  Profile  Settings
+
+--- PAGE 18 ---
+●  Academic  Year  Settings  ●  Term  Settings  ●  Time  Structure  Settings  ●  Daily  Schedule  Editor  ●  Time  Slot  Editor  ●  PLC  Policy  Settings  ●  Teacher  Workload  Settings  
+Timetable  
+●  PLC  Assignment  View  ●  Workload  Summary  View  
+ 
+ลําดับ การ พัฒนา ใหม่ ที่ แนะนํา  
+ทํา ตาม ลําดับ นี้ จะ เสี่ยง น้อย สุด  
+Wave  1:  Foundation  
+1.  Auth  2.  School  settings  3.  Academic  year  /  term  
+Wave  2:  Time  foundation  
+4.  Time  Structure  5.  Daily  Schedule  6.  Time  Slots  7.  PLC  Policy  8.  Teacher  Workload  
+Wave  3:  Core  academic  data  
+9.  Learning  Areas  10.  Subjects  11.  Teachers  12.  Classes  13.  Rooms  14.  Activities  
+Wave  4:  Teaching  structure
+
+--- PAGE 19 ---
+15.  Class  offerings  16.  Sections  17.  Course  assignments  18.  Homeroom  assignment  
+Wave  5:  Scheduling  
+19.  Timetable  editor  20.  Conflict  engine  21.  PLC  assignment  integration  22.  Publish/versioning  
+Wave  6:  Operations  
+23.  Substitute  teaching  24.  Dashboard  25.  Export  PDF/CSV  
+Wave  7:  Advanced  
+26.  Realtime  collaboration  improvements  27.  Smart  suggestion  engine  28.  Auto  scheduling  29.  Drive  integration  
+ 
+Business  Rules  ฉบับ อัปเดต ที่ ต้อง ล็อกใน
+ระบบ
+ 
+●  โรงเรียน กําหนด จํานวน วัน เรียน เอง ได้  ●  แต่ละ วัน มี จํานวน คาบ ไม่ เท่า กัน ได้  ●  time  slot  เป็น  source  of  truth  ของ  timetable  grid  ●  PLC  อยู่ หลังคา บ สุดท้าย ของ วัน ที่ โรงเรียน กําหนด เป็น ค่า เริ่ม ต้น  ●  PLC  เป็น  occupied  slot  ของ ครู  ●  PLC  ไม่ ใช่ คาบ เรียน ของ นักเรียน  ●  PLC  default  ระดับ โรงเรียน  override  ระดับ ครู ได้  ●  conflict  engine  ต้อง รู้จัก  slotType  ทุก ประเภท  ●  export  ต้อง อิง  school  config  และ  academic  term  เสมอ  ●  ทุก  query  ต้อง ผูก  schoolId
+
+--- PAGE 20 ---
+Deliverables  ที่ ทีม ควร ส่ง ใน แต่ละ ช่วง  
+หลัง  Wave  2  
+●  ระบบ ตั้ง วัน เรียน / คาบ / เวลา ได้  ●  ระบบ สร้าง  PLC  slot  ได้  ●  มีหน้า  settings  ครบ  
+หลัง  Wave  4  
+●  ครู ประจํา ชั้น  ●  ครู ประจํา วิชา  ●  รายวิชา พื้นฐาน / เพิ่มเติม  ●  section/subgroup  
+หลัง  Wave  5  
+●  จัด ตาราง จริง ได้  ●  กัน คาบ ชน ได้  ●  PLC  รวม ใน  teacher  schedule  ได้  
+หลัง  Wave  6  
+●  มี  dashboard  ●  มี สอน แทน  ●  export  PDF  /  CSV  ได้  
+ 
+สรุป  
+แผน เวอร์ชัน ใหม่ นี้ เพิ่ม แกน สําคัญ  2  เรื่อง เข้าไป ครบ แล้ว  คือ  
+Time
+ 
+Structure
+ 
+Management
+ 
+และ
+ 
+PLC
+ 
+Policy
+ 
+Management
+ 
+ซึ่ง
+เป็น
+ 
+requirement
+ 
+ระดับ
+โรงเรียน
+จริง
+ 
+และ
+มี
+ผล
+ต่อ
+ทั้ง
+ 
+timetable
+ 
+engine,
+ 
+conflict
+ 
+engine,
+ 
+workload,
+ 
+dashboard
+ 
+และ
+ 
+export
+ 
+ถ้า ต้องการ  ผม จะ ต่อ ให้ เป็น  ไฟล์ส เปก สําหรับ ส่ง ทีม พัฒนา  ใน รูป แบบ ที่ เป็น ทางการ มาก ขึ้น  เช่น  
+●  Functional  Specification  Document  ●  Database  Schema  Document  ●  หรือ  Prompt  สําหรับ  Codex  /  AI  Dev  โดย ตรง

@@ -128,7 +128,7 @@ function AppEntryRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return <AppLoader label="Loading authentication state" />;
+    return <AppLoader label="กำลังตรวจสอบการเข้าสู่ระบบ" />;
   }
 
   return <Navigate replace to={isAuthenticated ? '/app/dashboard' : '/login'} />;
@@ -136,7 +136,7 @@ function AppEntryRedirect() {
 
 export function AppRouter() {
   return (
-    <Suspense fallback={<AppLoader label="Preparing academic module" />}>
+    <Suspense fallback={<AppLoader label="กำลังเตรียมระบบงานวิชาการ" />}>
       <Routes>
         <Route path="/" element={<AppEntryRedirect />} />
         <Route path="/login" element={<LoginPage />} />

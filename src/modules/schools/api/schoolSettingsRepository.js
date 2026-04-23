@@ -1,5 +1,6 @@
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../../core/firebase/client';
+import { normalizeSchoolTheme } from '../../theme/constants/themePalette';
 
 function normalizeSignature(signature = {}, schoolId, index) {
   return {
@@ -23,6 +24,7 @@ function normalizeSchoolSettings(snapshot) {
           normalizeSignature(signature, data.schoolId, index),
         )
       : [],
+    theme: normalizeSchoolTheme(data.theme),
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };
@@ -33,6 +35,7 @@ export function createDraftSchoolSettings(schoolId = '') {
     id: schoolId,
     schoolId,
     signatures: [],
+    theme: normalizeSchoolTheme(),
     createdAt: null,
     updatedAt: null,
   };
@@ -66,7 +69,7 @@ export function subscribeSchoolSettingsById({ onChange, onError, schoolId }) {
   );
 }
 
-export async function upsertSchoolSettings({ schoolId, signatures }) {
+export async function upsertSchoolSettings({ schoolId, signatures, theme }) {
   const schoolSettingsRef = doc(db, 'schoolSettings', schoolId);
   const currentSnapshot = await getDoc(schoolSettingsRef);
   const normalizedSignatures = signatures
@@ -78,6 +81,7 @@ export async function upsertSchoolSettings({ schoolId, signatures }) {
     {
       schoolId,
       signatures: normalizedSignatures,
+      theme: normalizeSchoolTheme(theme),
       createdAt: currentSnapshot.exists()
         ? currentSnapshot.data().createdAt || serverTimestamp()
         : serverTimestamp(),

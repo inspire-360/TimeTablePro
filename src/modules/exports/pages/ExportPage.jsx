@@ -11,12 +11,14 @@ import { TimetableExportPreview } from '../components/TimetableExportPreview';
 import {
   buildOwnerOptionLabel,
   EXPORT_DOCUMENT_TYPE_OPTIONS,
+  EXPORT_PUBLICATION_VIEW_OPTIONS,
   exportTimetableDocument,
   findMatchingTeacherRecord,
   getRecommendedExportType,
   loadTimetableExportDependencies,
   loadTimetableExportDocument,
 } from '../services/timetableExportService';
+import { TIMETABLE_PUBLICATION_STATUS } from '../../timetable/helpers/timetablePublication';
 
 function sortByLabel(records = [], labelBuilder) {
   return [...records].sort((left, right) =>
@@ -53,6 +55,7 @@ export function ExportPage() {
   const [filters, setFilters] = useState({
     documentType: getRecommendedExportType(profile?.role),
     ownerId: '',
+    publicationView: TIMETABLE_PUBLICATION_STATUS.DRAFT,
     termId: '',
     timeStructureId: '',
   });
@@ -106,6 +109,7 @@ export function ExportPage() {
     return {
       documentType: nextDocumentType,
       ownerId: nextOwnerId,
+      publicationView: filters.publicationView || TIMETABLE_PUBLICATION_STATUS.DRAFT,
       termId: nextTermId,
       timeStructureId: nextTimeStructureId,
     };
@@ -117,6 +121,7 @@ export function ExportPage() {
     dependencies.timeStructures,
     filters.documentType,
     filters.ownerId,
+    filters.publicationView,
     filters.termId,
     filters.timeStructureId,
     matchedTeacher,
@@ -170,6 +175,7 @@ export function ExportPage() {
         currentSchoolSettings,
         documentType: effectiveFilters.documentType,
         ownerId: effectiveFilters.ownerId,
+        publicationView: effectiveFilters.publicationView,
         school: currentSchool,
         schoolId,
         teachers: activeTeachers,
@@ -198,6 +204,7 @@ export function ExportPage() {
     dependencies.timeStructures,
     effectiveFilters.documentType,
     effectiveFilters.ownerId,
+    effectiveFilters.publicationView,
     effectiveFilters.termId,
     effectiveFilters.timeStructureId,
     schoolId,
@@ -259,9 +266,9 @@ export function ExportPage() {
 
   return (
     <AcademicPageShell
-      eyebrow="Export"
-      title="Timetable Export Center"
-      description="Export class and teacher timetables as PDF or CSV with school branding, active academic context, and signature blocks."
+      eyebrow="ส่งออกเอกสาร"
+      title="ศูนย์ส่งออกตารางสอน"
+      description="ส่งออกตารางสอนของชั้นเรียนและครูเป็น PDF หรือ CSV พร้อมโลโก้โรงเรียน ข้อมูลภาคเรียน และลายเซ็นผู้ลงนาม"
       error={error}
       summary={
         <div className="academic-summary__grid">
@@ -270,6 +277,15 @@ export function ExportPage() {
           </StatusPill>
           <StatusPill tone={documentData ? 'success' : 'warning'}>
             Preview: {documentData ? 'Ready' : 'Not ready'}
+          </StatusPill>
+          <StatusPill
+            tone={
+              effectiveFilters.publicationView === TIMETABLE_PUBLICATION_STATUS.PUBLISHED
+                ? 'success'
+                : 'info'
+            }
+          >
+            View: {effectiveFilters.publicationView}
           </StatusPill>
           <StatusPill tone="neutral">
             Signatures: {currentSchoolSettings.signatures.length}
@@ -290,7 +306,9 @@ export function ExportPage() {
                 <p className="auth-card__eyebrow">Export filters</p>
                 <h2 className="academic-list-card__title">Document Settings</h2>
               </div>
-              <StatusPill tone="info">{filters.documentType}</StatusPill>
+              <StatusPill tone="info">
+                {[effectiveFilters.documentType, effectiveFilters.publicationView].join(' | ')}
+              </StatusPill>
             </div>
 
             {feedback.message ? (
@@ -353,6 +371,23 @@ export function ExportPage() {
                 {ownerOptions.map((record) => (
                   <option key={record.id} value={record.id}>
                     {buildOwnerOptionLabel(record, effectiveFilters.documentType)}
+                  </option>
+                ))}
+              </SelectField>
+
+              <SelectField
+                label="Publication view"
+                value={effectiveFilters.publicationView}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    publicationView: event.target.value,
+                  }))
+                }
+              >
+                {EXPORT_PUBLICATION_VIEW_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </SelectField>
@@ -451,6 +486,7 @@ export function ExportPage() {
                     <div>
                       <h3>{documentData.documentLabel}</h3>
                       <p>{documentData.owner.label}</p>
+                      <p>{documentData.publicationLabel}</p>
                       <p>
                         {documentData.academicYear?.label || 'Academic year not set'} |{' '}
                         {documentData.term.name}
@@ -461,6 +497,11 @@ export function ExportPage() {
                       <StatusPill tone="neutral">
                         Weekdays: {documentData.weekdays.length}
                       </StatusPill>
+                      {documentData.publicationTimestampLabel ? (
+                        <StatusPill tone="info">
+                          Published: {documentData.publicationTimestampLabel}
+                        </StatusPill>
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -477,7 +518,18 @@ export function ExportPage() {
                 <h2 className="academic-list-card__title">Rendered Document</h2>
               </div>
               {documentData ? (
-                <StatusPill tone="success">{documentData.timeStructure.name}</StatusPill>
+                <div className="export-preview-status">
+                  <StatusPill tone="success">{documentData.timeStructure.name}</StatusPill>
+                  <StatusPill
+                    tone={
+                      documentData.publicationView === TIMETABLE_PUBLICATION_STATUS.PUBLISHED
+                        ? 'success'
+                        : 'info'
+                    }
+                  >
+                    {documentData.publicationLabel}
+                  </StatusPill>
+                </div>
               ) : (
                 <StatusPill tone="neutral">Preview unavailable</StatusPill>
               )}

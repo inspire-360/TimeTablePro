@@ -8,6 +8,11 @@ import { listTimeSlotsByTimeStructure } from '../../time-structure/api/timeSlotR
 import { listTimeStructuresBySchool } from '../../time-structure/api/timeStructureRepository';
 import { getWeekdayOptions } from '../../time-structure/constants/timeStructureOptions';
 import {
+  getPublicationViewLabel,
+  TIMETABLE_PUBLICATION_STATUS,
+  TIMETABLE_PUBLICATION_VIEW_OPTIONS,
+} from '../../timetable/helpers/timetablePublication';
+import {
   listTimetableEntriesByClass,
   listTimetableEntriesByTeacher,
 } from '../../timetable/api/timetableRepository';
@@ -18,6 +23,8 @@ export const EXPORT_DOCUMENT_TYPE_OPTIONS = [
   { value: 'class', label: 'Class Timetable' },
   { value: 'teacher', label: 'Teacher Timetable' },
 ];
+
+export { TIMETABLE_PUBLICATION_VIEW_OPTIONS as EXPORT_PUBLICATION_VIEW_OPTIONS };
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -136,8 +143,48 @@ function buildExportFileName(documentData, extension) {
   const typePart = sanitizeFilePart(documentData.documentType);
   const ownerPart = sanitizeFilePart(documentData.owner.name || documentData.owner.displayName);
   const termPart = sanitizeFilePart(documentData.term.name || 'term');
+  const publicationPart = sanitizeFilePart(documentData.publicationView || 'draft');
 
-  return [schoolPart, typePart, ownerPart, termPart].filter(Boolean).join('-') + `.${extension}`;
+  return [schoolPart, typePart, ownerPart, termPart, publicationPart]
+    .filter(Boolean)
+    .join('-') + `.${extension}`;
+}
+
+function formatTimestamp(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value?.toDate === 'function') {
+    return dayjs(value.toDate()).format('DD/MM/YYYY HH:mm');
+  }
+
+  return dayjs(value).format('DD/MM/YYYY HH:mm');
+}
+
+function buildPublicationContext(entries = [], publicationView) {
+  if (publicationView === TIMETABLE_PUBLICATION_STATUS.PUBLISHED) {
+    const publishedTimestamps = entries
+      .map((entry) => entry.publishedAt)
+      .filter(Boolean)
+      .sort((left, right) => {
+        const leftValue = typeof left?.toMillis === 'function' ? left.toMillis() : dayjs(left).valueOf();
+        const rightValue =
+          typeof right?.toMillis === 'function' ? right.toMillis() : dayjs(right).valueOf();
+
+        return rightValue - leftValue;
+      });
+
+    return {
+      label: getPublicationViewLabel(publicationView),
+      timestampLabel: formatTimestamp(publishedTimestamps[0]),
+    };
+  }
+
+  return {
+    label: getPublicationViewLabel(publicationView),
+    timestampLabel: '',
+  };
 }
 
 export async function loadTimetableExportDependencies({ schoolId }) {
@@ -174,6 +221,7 @@ export async function loadTimetableExportDocument({
   currentSchoolSettings,
   documentType,
   ownerId,
+  publicationView = TIMETABLE_PUBLICATION_STATUS.DRAFT,
   school,
   schoolId,
   teachers = [],
@@ -235,6 +283,7 @@ export async function loadTimetableExportDocument({
     }),
     documentType === 'teacher'
       ? listTimetableEntriesByTeacher({
+          publicationView,
           schoolId,
           teacherId: ownerId,
           termId: selectedTerm.id,
@@ -242,11 +291,16 @@ export async function loadTimetableExportDocument({
         })
       : listTimetableEntriesByClass({
           classId: ownerId,
+          publicationView,
           schoolId,
           termId: selectedTerm.id,
           timeStructureId: selectedTimeStructure.id,
         }),
   ]);
+
+  if (publicationView === TIMETABLE_PUBLICATION_STATUS.PUBLISHED && entries.length === 0) {
+    throw new Error('No published timetable is available for the selected filters yet.');
+  }
 
   const weekdays = buildWeekdayModel({
     dailySchedules,
@@ -263,6 +317,7 @@ export async function loadTimetableExportDocument({
     academicYears.find((academicYear) => academicYear.id === selectedTerm.academicYearId) ||
     activeAcademicYear ||
     null;
+  const publicationContext = buildPublicationContext(entries, publicationView);
 
   return {
     academicYear: selectedAcademicYear,
@@ -277,6 +332,9 @@ export async function loadTimetableExportDocument({
       label: buildOwnerOptionLabel(selectedOwner, documentType),
       name: selectedOwner.name || selectedOwner.displayName || '',
     },
+    publicationLabel: publicationContext.label,
+    publicationTimestampLabel: publicationContext.timestampLabel,
+    publicationView,
     school: {
       affiliation: school?.affiliation || '',
       logoUrl: school?.logoUrl || '',
