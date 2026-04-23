@@ -183,13 +183,25 @@ code {
 
 .auth-card {
   width: min(100%, 520px);
-  background: var(--surface);
-  border: 1px solid var(--line);
+
+  /* fallback */
+  background: rgba(255, 255, 255, 0.85);
+
   border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(14px);
+
   overflow: hidden;
   animation: rise-in 360ms ease;
+}
+
+/* รองรับเฉพาะ browser ที่ใช้ blur ได้ */
+@supports ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
+  .auth-card {
+    background: rgba(255, 255, 255, 0.12);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
 }
 
 .auth-card__tabs {
@@ -455,11 +467,23 @@ code {
   position: sticky;
   top: 16px;
   z-index: 20;
-  background: rgba(255, 252, 247, 0.86);
+
+  /* fallback */
+  background: rgba(255, 252, 247, 0.95);
+
   border: 1px solid var(--line);
   border-radius: 28px;
   box-shadow: var(--shadow-md);
-  backdrop-filter: blur(18px);
+
+  overflow: hidden;
+}
+
+@supports ((backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+  .app-navbar {
+    background: rgba(255, 252, 247, 0.86);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
 }
 
 .app-navbar__brand {
@@ -1840,9 +1864,21 @@ code {
   align-content: space-between;
   gap: 24px;
   padding: 28px 22px;
+
   border-right: 1px solid var(--line);
-  background: rgba(255, 253, 248, 0.6);
-  backdrop-filter: blur(16px);
+
+  /* fallback (browser ไม่รองรับ blur) */
+  background: rgba(255, 253, 248, 0.92);
+
+  overflow: hidden;
+}
+
+@supports ((backdrop-filter: blur(16px)) or (-webkit-backdrop-filter: blur(16px))) {
+  .shell__sidebar {
+    background: rgba(255, 253, 248, 0.6);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
 }
 
 .brand-block {
